@@ -25,7 +25,7 @@
     });
 
     const chartOptions = computed(() => {
-        // Pastikan data valid
+
         if (!rawData.value || !rawData.value.values || rawData.value.values.length === 0) return {};
 
         const rawValues = JSON.parse(JSON.stringify(rawData.value.values));
@@ -63,10 +63,6 @@
                 height: 400, 
                 animation: false,
                 styledMode: false,
-                // scrollbar: {
-                //     enabled: true,
-                //     showFull: false
-                // },
                 zoomType:'x',
                 panning: {
                     enabled: true,
@@ -103,15 +99,12 @@
                     } 
                 },
                 gridLineWidth: 1,
-                // gridLineColor: isDark ? '#444444' : '#E0E0E0',
                 gridLineColor: '#FF0000',
                 gridZIndex: 4,
                 gridLineDashStyle: 'Solid'
             },
             yAxis: {
-                // gridLineWidth: 1,
-                // gridLineColor: isDark ? '#444444' : '#E0E0E0',
-                // gridZIndex: 4,
+
                 title: { 
                     text: labelTitle,
                     style: { color: textColor, fontWeight:'bold', fontSize:'14px' } 
@@ -129,10 +122,7 @@
     });
 
     function doyToTimestamp(doy: number, year: number): number {
-        // Membuat tanggal dari tahun dan hari ke-doy
-        // const date = new Date(year, 0); // 0 = Januari
-        // date.setDate(doy); // Menambah hari ke tanggal 1 Januari
-        // return date.getTime(); // Mengembalikan milidetik
+
         return Date.UTC(year, 0, doy);
     }
     function formatDate(timestamp: number): string {
@@ -145,8 +135,7 @@
 
     watch(() => [props.show, props.filePath], ([newShow, newPath]) => {
         internalShow.value = newShow as boolean;
-        // console.log("File Type yang diterima:", props.fileType);
-        // Jika dialog terbuka dan path valid
+
         if (newShow && newPath) {
             try {
                 const content = electron.readFile(newPath as string);

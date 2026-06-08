@@ -43,7 +43,7 @@
 		hideEdit?: boolean,
 		hideDelete?: boolean,
 		itemsPerPage?: number,
-		defaultSort?: [string,string], //[sort key, asc or desc]
+		defaultSort?: [string,string], 
 		hideFields?: string[],
 		showImportExport?: boolean,
 		defaultCsvFile?: string,
@@ -231,19 +231,18 @@ async function get(init = false) {
 	function openFile(item: any, header: any) {
 		const fileValue = item[header.key];
 
-		// 1. Ambil nama file dengan aman
+
 		let fileName = (fileValue && typeof fileValue === 'object' && 'name' in fileValue) 
 			? fileValue.name 
 			: fileValue;
 
-		// 2. Pastikan fileName adalah string
+
 		if (typeof fileName !== 'string') {
 			console.warn('Data bukan string, tidak bisa dibuka:', fileValue);
 			return;
 		}
 
-		// 3. Deteksi ekstensi dengan aman
-		// Jika tidak ada titik (.), kita asumsikan 'unknown' atau tipe default
+
 		const parts = fileName.split('.');
 		const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : 'unknown';
 
@@ -251,7 +250,7 @@ async function get(init = false) {
 
 		chart.filePath = `${header.filePath}\\${fileName}`;
 		chart.fileName = fileName;
-		chart.fileType = extension || 'unknown'; // Pastikan tidak undefined
+		chart.fileType = extension || 'unknown'; 
 		chart.show = true;
 	}
 
@@ -308,11 +307,11 @@ async function get(init = false) {
 
 	function importData() {
 		page.import.error = null;
-		page.import.saving = true; // Mulai loading
+		page.import.saving = true; 
 
 		if (formatters.isNullOrEmpty(page.import.form.fileName)) {
 			page.import.error = 'Please select a file below.';
-			page.import.saving = false; // Berhenti loading jika error
+			page.import.saving = false; 
 		} else {
 			let args = [
 				page.import.form.type, 
@@ -325,7 +324,7 @@ async function get(init = false) {
 			if (props.importExportDeleteExisting) args.push('--delete_existing=y');
 			if (!formatters.isNullOrEmpty(props.importPrimaryKey)) args.push('--column_name=' + props.importPrimaryKey);
 
-			// Panggil taskStore
+	
 			taskStore.runTask(args, {
 				proc_name: 'gridview',
 				script_name: 'swatplus_api',
@@ -333,16 +332,16 @@ async function get(init = false) {
 				type: null,
 				routePath: route.path
 			}, async () => {
-				// --- CALLBACK: Dijalankan saat proses selesai ---
+
 				if (page.import.form.type === 'export_csv') {
 					closeTaskModals();
 					page.exported.show = true;
 				} else {
-					await get(false); // Refresh data tabel
+					await get(false); 
 					closeTaskModals();
 				}
 				
-				// Matikan loading HANYA setelah proses benar-benar selesai
+
 				page.import.saving = false;
 			});
 		}

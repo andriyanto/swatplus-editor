@@ -1,7 +1,13 @@
 <script setup lang="ts">
+	import { computed } from 'vue';
 	import { useHelpers } from '@/helpers';
-	const { formatters, currentProject } = useHelpers();
+	import { useLangStore } from '@/store/lang';
 
+	const { formatters, currentProject } = useHelpers();
+	const langStore = useLangStore();
+
+
+	const errorMessage = computed(() => langStore.t.common.errContainer);
 	interface Props {
 		loading?: boolean,
 		loadError?: string | null,
@@ -16,7 +22,7 @@
 		loadingMessage: '',
 	});
 
-	let errorMessage = 'Tidak ada proyek yang terbuka. Silakan Klik Project Setup and Information untuk melanjutkan.';
+	
 </script>
 
 <template>

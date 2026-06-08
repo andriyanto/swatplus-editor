@@ -1,6 +1,6 @@
 from . import base, config, simulation, climate, link, channel, reservoir, dr, exco, recall, hydrology, routing_unit, aquifer, \
 	basin, hru_parm_db, structural, ops, decision_table, init, lum, soils, \
-	change, regions, hru, connect, gis, water_rights, salts
+	change, regions, hru, connect, gis, water_rights, salts, data_cuaca
 from database import lib
 from database.datasets import base as datasets_base, definitions as dataset_defs, decision_table as dataset_dts
 from typing import Optional
@@ -121,6 +121,7 @@ class SetupProjectDatabase():
 						  salts.Salt_res_ini,
 						  salts.Salt_hru_ini_cs,
 						  salts.Salt_module])
+		base.db.create_tables([data_cuaca.StationLocations, data_cuaca.WeatherDailyData])
 
 	@staticmethod
 	def initialize_data(project_name, is_lte=False, overwrite_plants=False):
@@ -295,24 +296,7 @@ class SetupProjectDatabase():
 		print_prt_id = simulation.Print_prt.select().first().id
 		print_obj_query = dataset_defs.Print_prt_object.select().order_by(dataset_defs.Print_prt_object.id)
 
-		# if print_obj_query.count() > 0:
-		# 	print_objs = []
-		# 	for p in print_obj_query:
-		# 		existing = simulation.Print_prt_object.get(simulation.Print_prt_object.name == p.name
-        #         )
-		# 		if existing is None:
-		# 			print_obj = {
-		# 				'print_prt': print_prt_id,
-		# 				'name': p.name,
-		# 				'daily': p.daily,
-		# 				'monthly': p.monthly,
-		# 				'yearly': p.yearly,
-		# 				'avann': p.avann
-		# 			}
-		# 			print_objs.append(print_obj)
-		# 	if print_objs:
-		# 		lib.bulk_insert(base.db, simulation.Print_prt_object, print_objs)
-  
+ 
 		if print_obj_query.count() > 0:
 			print_objs = []
 			for p in print_obj_query:

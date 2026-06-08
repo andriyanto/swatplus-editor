@@ -6,6 +6,12 @@
 	import SwatPlusToolboxButton from '../components/SwatPlusToolboxButton.vue';
 	import SwatPlusIahrisButton from '../components/SwatPlusIahrisButton.vue';
 	import ImageOverlays from '../components/ImageOverlays.vue';
+
+	import { useLangStore } from '@/store/lang';
+	import { storeToRefs } from 'pinia';
+
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
 	
 	const route = useRoute();
 	const theme = useTheme();
@@ -75,7 +81,7 @@
 
 	async function get() {
 		if (!currentProject.projectDb || currentProject.projectDb === null) {
-			console.log("API request aborted: projectDb is not loaded yet.");
+			console.log(langStore.t.common.log_api_aborted);
 			return;
     	}
 		data.page.loading = true;
@@ -100,11 +106,11 @@
 					data.check = response2.data;
 
 					if (!response.data.has_observed_weather) {
-						data.simulationWarnings.push('You are using simulated precipitation data; if you intend to calibrate, you should used measured precipitation data');
+						data.simulationWarnings.push(langStore.t.common.warn_simulated_precip);
 					}
 
 					if (response.data.print.prt.nyskip < 1) {
-						data.simulationWarnings.push('It is highly recomended that you use at least 1 year of model warmup; 2-5 years is better');
+						data.simulationWarnings.push(langStore.t.common.warn_warmup_period);
 					}
 
 					if (data.check.info.swatVersion === 'development') {
@@ -113,7 +119,7 @@
 				}
 			}
 		} catch (error) {
-			data.page.error = errors.logError(error, 'Unable to get SWAT+ Check data from database.');
+			data.page.error = errors.logError(error, t.value.common.err_get_swatcheck_data);
 		}
 		
 		data.page.loading = false;
@@ -677,10 +683,10 @@
         <v-main class="layout-fix">
 			<div class="py-3 px-6 my-unformatted-code" v-if="!canLoad">
                 <div v-if="currentProject.isLte">			
-					<h1 class="text-h5 mb-6">SWAT+ Check Not Available</h1>
+					<h1 class="text-h5 mb-6">{{ t.common.check_not_available_title }}</h1>
 
 					<v-alert color="info" icon="$info" variant="tonal" border="start" class="my-4">
-						SWAT+ Check is not available for SWAT+ lte models.					
+						{{ t.common.check_not_available_msg }}				
 					</v-alert>
 
 					<v-btn @click="utilities.exit" variant="flat" color="primary">Exit SWAT+ Editor</v-btn>
@@ -691,7 +697,7 @@
 					<v-btn to="/run" variant="flat" color="primary">Re-Configure Model Run</v-btn>
 				</div>
 				<div v-else-if="formatters.isNullOrEmpty(data.config.output_last_imported)">
-					<h1 class="text-h5 mb-6">Not ready to run SWAT+ Check</h1>
+					<h1 class="text-h5 mb-6">{{t.common.not_ready_run_swat}}</h1>
 
 					<v-alert color="red" icon="$info" variant="tonal" border="start" class="my-4">
 						Anda harus menjalankan model dan menganalisis output sebelum menjalankan SWAT+ Check.				
@@ -712,26 +718,19 @@
 							<h1 class="text-h5 mb-6">SWAT+ Check</h1>
 
 							<p> 
-								SWAT+ Check membaca output model dari proyek SWAT+ dan melakukan banyak pemeriksaan sederhana untuk mengidentifikasi
-								potensi masalah model. Tujuan dari program ini adalah untuk mengidentifikasi masalah model sejak dini dalam
-								proses pemodelan. Masalah model yang tersembunyi seringkali mengakibatkan perlunya kalibrasi ulang atau regenerasi model,
-								yang mengakibatkan pemborosan waktu yang dapat dihindari. Program ini dirancang untuk membandingkan berbagai output SWAT+ dengan
-								rentang nominal berdasarkan penilaian pengembang model. Peringatan tidak selalu menunjukkan masalah;
-								tujuannya adalah untuk menarik perhatian pada prediksi yang tidak biasa. Perangkat lunak ini juga menyediakan representasi visual
-								dari berbagai output model untuk membantu pengguna pemula. 
+								{{ t.common.check_overview_desc }} 
 							</p>
 
 							<v-alert v-if="data.check.info.gwflow" type="warning" icon="$warning" variant="tonal" border="start" class="my-4">
 								<p>
-									Model Anda menggunakan modul GWFLOW. SWAT+ Check saat ini belum sepenuhnya kompatibel dengan GWFLOW.
-									Kami akan memperbarui ini sesegera mungkin. Untuk saat ini, nilai-nilai berikut tidak tersedia:
+									{{ t.common.gwflow_warning_msg }}
 								</p>
 								<ul>
 									<li>Hydrology: return flow, revap, recharge, baseflow total flow, deep recharge precipitation</li>
 									<li>Landscape Nitrogen Losses: leached, groundwater yield</li>
 								</ul>
 								<p>
-									Kami menganjurkan Anda untuk memeriksa file output GWFLOW secara manual sampai perbaikan tersedia.
+									{{ t.common.gwflow_footer }}
 								</p>
 							</v-alert>
 

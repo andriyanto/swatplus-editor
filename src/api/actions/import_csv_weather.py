@@ -2,9 +2,8 @@
 import sys
 import os
 
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    
-import json
+  
+
 import re
 import pandas as pd
 from datetime import datetime
@@ -13,9 +12,9 @@ from actions.import_weather import WeatherImport
 from helpers.executable_api import ExecutableApi
 from database.project.setup import SetupProjectDatabase
 from database.project.config import Project_config
-from helpers import utils
-#from database.project.climate import Weather_file, Weather_sta_cli, Weather_sta_cli_scale, Weather_wgn_cli, Weather_wgn_cli_mon, Atmo_cli, Atmo_cli_sta, Atmo_cli_sta_value
-# ... copy other necessary imports ...
+from database.project.data_cuaca import StationLocations, WeatherDailyData
+from database.project.base import db
+
 
 
 
@@ -60,6 +59,7 @@ class Unbuffered(object):
 class CsvWeatherImport(ExecutableApi):
     def __init__(self, project_db_file, delete_existing, csv_dir, output_dir):
         SetupProjectDatabase.init(project_db_file)
+        db.create_tables([StationLocations, WeatherDailyData], safe=True)
         self.project_db_file = project_db_file
         self.csv_dir = csv_dir
         self.weather_output_dir = output_dir
@@ -69,14 +69,7 @@ class CsvWeatherImport(ExecutableApi):
         else:
             self.weather_output_dir = output_dir
         self.delete_existing_data = delete_existing
-        
-            
-        # config = Project_config.get()
-        
-    def emit_error(self, message):
-        print(f"Error: {message}")
-        print(json.dumps({"error": message}))
-        
+   
     def update_db_config(self):
         try:
             config = Project_config.get()
@@ -94,17 +87,7 @@ class CsvWeatherImport(ExecutableApi):
             self.emit_error(f"Gagal memperbarui database config: {str(e)}")
             print(f"DEBUG ERROR: {e}")          
      
-    def process_data(self, file_path):
-        self.emit_progress(20, f"Memproses data dari {os.path.basename(file_path)}...")
-        
-        pass
-
-    def import_data(self):
-
-        self.process_file_csv()
-        # create_weather_cli_index(self.weather_output_dir, '.hmd', 'Relative humidity', 'hmd.cli')
-        
-        
+      
     def process_file_csv(self):
         all_files = [f for f in os.listdir(self.csv_dir) if f.endswith(".csv")]
         if not all_files:
@@ -130,9 +113,11 @@ class CsvWeatherImport(ExecutableApi):
             self.create_slr_data(file_path, current_meta)
             self.create_wnd_data(file_path, current_meta)
             self.create_tem_data(file_path, current_meta)
+            
+            self.import_to_db(file_path, current_meta)
                         
             percent = int(((i+1) / len(all_files)) * 100)
-            self.emit_progress(percent, f"Validasi file {filename}... Berhasil!")    
+            self.emit_progress(percent, f"Validasi & DB Sync file {filename}... Berhasil!")    
 
     def parse_header_info(self, file_path):
         # Contoh fungsi untuk membaca header CSV dan mengekstrak informasi stasiun
@@ -147,10 +132,7 @@ class CsvWeatherImport(ExecutableApi):
             'longitude': None,
             'elevation': None
             }
-        
-        # for i, line in enumerate(head):
-        #     print(f"Baris {i}: {line.strip()}")
-        
+  
         for line in head:
             
             date_match = re.search(r'(\d{2}/\d{2}/\d{4}).*?(\d{2}/\d{2}/\d{4})', line)
@@ -171,14 +153,10 @@ class CsvWeatherImport(ExecutableApi):
                 if elev_match:
                     try:
                         info['elevation'] = float(elev_match.group(1))
-                        # print(f"DEBUG: Elevasi ditemukan: {info['elevation']}")
                         break
                     except ValueError:
                         print(f"DEBUG: Gagal mengonversi angka: {elev_match.group(1)}")
                     
-
-
-
         # print(f"DEBUG info: {info}")
         if not info['start_year'] or not info['end_year'] or not info['latitude'] or not info['longitude']:
             self.emit_error(f"Format header tidak valid di file {os.path.basename(file_path)}. Pastikan header memiliki informasi tanggal dan lokasi yang benar.")
@@ -209,10 +187,7 @@ class CsvWeatherImport(ExecutableApi):
                 f.write(format_swat_line(row['YEAR'], row['DOY'], row['RH2M']/100.0))
 
     def create_pcp_data(self, file_path, meta):
-        # with open(file_path, 'r') as f:
-        #     lines = f.readlines()
-        #     print(f"Baris ke-15 adalah: {lines[14]}")  # Debug: Tampilkan baris ke-15 untuk memastikan formatnya benar
-            
+           
         df = pd.read_csv(file_path, skiprows=14, sep=r',')
         
         base_name = os.path.basename(file_path).replace('.csv', '')
@@ -231,9 +206,6 @@ class CsvWeatherImport(ExecutableApi):
                 f.write(format_swat_line(row['YEAR'], row['DOY'], row['PRECTOTCORR']))
                 
     def create_slr_data(self, file_path, meta):
-        # with open(file_path, 'r') as f:
-        #     lines = f.readlines()
-        #     print(f"Baris ke-15 adalah: {lines[14]}")  # Debug: Tampilkan baris ke-15 untuk memastikan formatnya benar
             
         df = pd.read_csv(file_path, skiprows=14, sep=r',')
         
@@ -253,9 +225,6 @@ class CsvWeatherImport(ExecutableApi):
                 f.write(format_swat_line(row['YEAR'], row['DOY'], row['TOA_SW_DWN']))
                 
     def create_wnd_data(self, file_path, meta):
-        # with open(file_path, 'r') as f:
-        #     lines = f.readlines()
-        #     print(f"Baris ke-15 adalah: {lines[14]}")  # Debug: Tampilkan baris ke-15 untuk memastikan formatnya benar
             
         df = pd.read_csv(file_path, skiprows=14, sep=r',')
         
@@ -275,9 +244,6 @@ class CsvWeatherImport(ExecutableApi):
                 f.write(format_swat_line(row['YEAR'], row['DOY'], row['WS2M']))
                 
     def create_tem_data(self, file_path, meta):
-        # with open(file_path, 'r') as f:
-        #     lines = f.readlines()
-        #     print(f"Baris ke-15 adalah: {lines[14]}")  # Debug: Tampilkan baris ke-15 untuk memastikan formatnya benar
             
         df = pd.read_csv(file_path, skiprows=14, sep=r',')
         
@@ -295,10 +261,47 @@ class CsvWeatherImport(ExecutableApi):
 
             for _, row in df.iterrows():
                 f.write(format_swat_tem_line(row['YEAR'], row['DOY'], row['T2M_MAX'], row['T2M_MIN']))
-                
+
+    def import_to_db(self, file_path, meta):
+        # 2. Ambil/buat stasiun
+        station_name = os.path.basename(file_path).replace('.csv', '')
+        station, _ = StationLocations.get_or_create(
+            station_name=station_name,
+            defaults={
+                'lat': float(meta['latitude']),
+                'long': float(meta['longitude']),
+                'elev': float(meta['elevation']) if meta['elevation'] else 0.0
+            }
+        )
+        
+        # 3. Hapus data lama untuk stasiun ini (Refresh Data)
+        with db.atomic():
+            WeatherDailyData.delete().where(WeatherDailyData.station == station).execute()
+        
+        # 4. Baca CSV dan siapkan list data
+        df = pd.read_csv(file_path, skiprows=14)
+        data_list = []
+        for _, row in df.iterrows():
+            data_list.append({
+                'station': station,
+                'date': f"{int(row['YEAR'])}-{int(row['DOY'])}",
+                'pcp': row.get('PRECTOTCORR', 0),
+                'tmp_max': row.get('T2M_MAX', 0),
+                'tmp_min': row.get('T2M_MIN', 0),
+                'slr': row.get('TOA_SW_DWN', 0),
+                'wnd': row.get('WS2M', 0),
+                'hmd': row.get('RH2M', 0) / 100.0 if 'RH2M' in row else 0.0
+            })
+        
+        # 5. Insert data baru
+        if data_list:
+            with db.atomic():
+                WeatherDailyData.insert_many(data_list).execute()
+                print(f"DEBUG: Insert {len(data_list)} data ke DB untuk {station_name}")
+                          
     def run_import(self):
         sys.stdout = Unbuffered(sys.stdout)
-        self.import_data()
+        self.process_file_csv()
         
         create_weather_cli_index(self.weather_output_dir, '.hmd', 'Relative humidity', 'hmd.cli')
         create_weather_cli_index(self.weather_output_dir, '.pcp', 'Precipitation', 'pcp.cli')
@@ -320,13 +323,8 @@ class CsvWeatherImport(ExecutableApi):
             self.emit_error(f"Terjadi kegagalan saat sinkronisasi database SWAT+: {str(e)}")
         finally:
             try:
-                from database.project import base as project_base
-                db_obj = getattr(project_base.db, 'obj', None)
-                if db_obj is not None:
-                    if not project_base.db.is_closed():
-                        project_base.db.close()
-                        print("DEBUG: Koneksi database utama berhasil dibersihkan dan ditutup.")
+                if not db.is_closed():
+                    db.close()
+                    print("DEBUG: Koneksi database berhasil ditutup.")
             except Exception:
                 pass
-                
-                

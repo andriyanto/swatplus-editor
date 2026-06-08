@@ -1,8 +1,12 @@
 <script setup lang="ts">
 	import { reactive, onMounted } from 'vue';
 	import { useHelpers } from '@/helpers';
+	import { useLangStore } from '@/store/lang';
+	import { storeToRefs } from 'pinia';
 
 	const { api, constants, errors, utilities } = useHelpers();
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
 
 	let page:any = reactive({
 		loading: false,
@@ -39,21 +43,21 @@
 			<v-row>
 				<v-col cols="12" md="6">
 					<v-card class="mb-6">
-						<v-card-title>Help Using SWAT+ Editor</v-card-title>
+						<v-card-title>{{ t.help.help_title }}</v-card-title>
 						<v-card-text>
 							<p class="text-medium-emphasis">
-							SWAT+ Editor adalah antarmuka ke SWAT+ yang memungkinkan pengguna untuk mengimpor proyek dari GIS, memodifikasi input SWAT+, menulis file teks, dan menjalankan model.
+							{{ t.help.help_desc }}
 							</p>
 						</v-card-text>
 					</v-card>
 
 					<v-card class="mb-6">
-						<v-card-title>Troubleshooting</v-card-title>
+						<v-card-title>{{ t.common.troubleshoot_title }}</v-card-title>
 						<v-card-text>
 							<p class="text-medium-emphasis mb-0">
-								Silakan kirim informasi di bawah ini ke 
+								{{ t.common.troubleshoot_desc_part1 }}
 								<open-in-browser url="https://groups.google.com/d/forum/swatplus-editor" text="user group" class="text-primary"></open-in-browser>
-								beserta pesan kesalahan Anda.
+								{{ t.common.troubleshoot_desc_part2 }}
 							</p>
 						</v-card-text>
 						<v-table density="compact">
@@ -71,10 +75,10 @@
 					</v-card>
 
 					<v-card class="mb-6">
-						<v-card-title>Tools Compatibility with SWAT+ Editor {{ constants.appSettings.version }}</v-card-title>
+						<v-card-title>{{ t.common.compat_title.replace('{version}', constants.appSettings.version) }}</v-card-title>
 						<v-card-text>
 							<p class="text-medium-emphasis mb-0">
-								Kami menyadari bahwa kami memiliki banyak alat dengan berbagai versi. Mohon pastikan bahwa saat Anda memperbarui satu alat, alat tersebut tetap kompatibel dengan alat Anda yang lain.
+								{{ t.common.compat_desc }}
 							</p>
 						</v-card-text>
 						<v-table density="compact">
@@ -86,40 +90,26 @@
 						</v-table>
 						<v-card-text>
 							<p class="text-medium-emphasis mb-0">
-								*Note: Meskipun Anda dapat mengubah versi SWAT+ yang digunakan di editor, kami menyarankan untuk melakukannya dengan hati-hati dan dengan pengetahuan tentang perubahan model antar versi.
-								Jika ada perubahan file input dan output, Anda mungkin mengalami kesalahan atau hasil yang tidak akurat. Untuk mengubah versi model Anda, buka tab <router-link to="/run">Run</router-link> 
-								lalu pilih salah satu versi bawaan dari menu tarik-turun, atau klik ikon roda gigi untuk mendapatkan petunjuk lanjutan.
+								{{ t.help.help_note_part1 }} <router-link to="/run">Run</router-link> 
+								{{ t.help.help_note_part2 }}
 							</p>
 						</v-card-text>
 					</v-card>
 
 					<v-card class="mb-6">
-						<v-card-title>Seputar SWAT+</v-card-title>
+						<v-card-title>{{ t.help.about_title }}</v-card-title>
 						<v-card-text>
 							<p class="text-medium-emphasis mb-0">
-								Soil and Water Assessment Tool Plus (SWAT+) adalah model domain publik yang dikembangkan bersama oleh
-								USDA Agricultural Research Service (USDA-ARS) dan Texas A&M AgriLife Research, bagian dari Sistem Universitas Texas A&M.
-								SWAT+ adalah model skala DAS kecil hingga DAS sungai untuk mensimulasikan kualitas dan kuantitas air permukaan dan air tanah serta memprediksi
-								dampak lingkungan dari penggunaan lahan, praktik pengelolaan lahan, dan perubahan iklim. SWAT banyak digunakan dalam menilai pencegahan dan pengendalian erosi tanah,
-								pengendalian pencemaran sumber non-titik, dan pengelolaan regional di DAS.
+								{{ t.help.about_desc }}
 							</p>
 						</v-card-text>
 					</v-card>
 
 					<v-card class="mb-6">
-						<v-card-title>Disclaimer</v-card-title>
+						<v-card-title>{{ t.help.disclaimer_title }}</v-card-title>
 						<v-card-text>
 							<p class="text-medium-emphasis mb-0">
-								Informasi yang terdapat dalam perangkat lunak ini ditawarkan sebagai layanan publik. Merupakan tanggung jawab pengguna untuk memverifikasi keakuratan,
-								kelengkapan, ketepatan waktu, kualitas, atau kesesuaian untuk penggunaan tertentu dari informasi/perangkat lunak yang disediakan. Baik Grassland,
-								Soil & Water Research Laboratory (GSWRL), Blackland Research Center (BRC), maupun Texas A&M AgriLife Research (TALR) tidak membuat klaim,
-								jaminan, atau garansi apa pun tentang keakuratan, kelengkapan, ketepatan waktu, kualitas, atau kesesuaian untuk penggunaan tertentu dari perangkat lunak ini.
-								GSWRL, BRC, dan TALR menolak semua tanggung jawab atas klaim atau kerusakan apa pun yang mungkin timbul dari penyediaan situs web atau informasi/
-								perangkat lunak yang terdapat di dalamnya. Pengguna perangkat lunak ini menanggung semua tanggung jawab dan melepaskan semua klaim atau tuntutan hukum terhadap
-								GSWRL, BRC, dan TALR atas semua penggunaan dan ketergantungan pada informasi/perangkat lunak tersebut. GSWRL, BRC, dan TALR tidak mendukung entitas komersial,
-								produk, konsultan, atau dokumentasi apa pun yang mungkin dirujuk dalam perangkat lunak ini. Informasi yang terdapat dalam perangkat lunak ini disediakan
-								untuk tujuan informasi umum, dan tidak dimaksudkan sebagai ajakan atau penawaran untuk menjual sehubungan dengan produk atau layanan apa pun.
-								Segala referensi kepada entitas komersial, produk, atau konsultan hanya untuk tujuan informasi.
+								{{ t.help.disclaimer_text }}
 							</p>
 						</v-card-text>
 					</v-card>

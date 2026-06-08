@@ -139,7 +139,7 @@ if __name__ == '__main__':
 			api.import_data()
 		elif args.import_type == "csv":
 			# print("DEBUG: API menerima perintah import CSV!")
-			api = CsvWeatherImport(args.project_db_file, del_ex, args.csv_dir, args.weather_output_dir)
+			api = CsvWeatherImport(project_db_file=args.project_db_file, delete_existing=del_ex, csv_dir=args.csv_dir, output_dir=args.output_dir)
 			api.run_import()
 		elif args.import_type == "observed2012":
 			api = Swat2012WeatherImport(args.project_db_file, del_ex, cre_sta, args.source_dir)

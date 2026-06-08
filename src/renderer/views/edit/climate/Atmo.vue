@@ -214,7 +214,6 @@
 				proc_name: 'atmo',
 				script_name: 'swatplus_api',
 				type: 'import', // Menggantikan task.type = 'import'
-				isGridTask : true,
 				routePath: route.path,
 				isGridTask : true
         	}, async () => {
@@ -255,58 +254,7 @@
 		}
 	}
 
-	// function runTask(args:string[]) {
-	// 	task.error = null;
-	// 	task.running = true;
-	// 	task.progress = {
-	// 		percent: 0,
-	// 		message: null
-	// 	};
-
-	// 	task.isGridTask = true;
-	// 	task.currentPid = runProcess.runApiProc('atmo', 'swatplus_api', args);
-	// }
-
-	// let listeners:any = {
-	// 	stdout: undefined,
-	// 	stderr: undefined,
-	// 	close: undefined
-	// }
-
-	// function initRunProcessHandlers() {
-	// 	listeners.stdout = runProcess.processStdout('atmo', (data:any) => {
-	// 		console.log(`stdout: ${data}`);
-	// 		task.progress = runProcess.getApiOutput(data);
-	// 	});
-		
-	// 	listeners.stderr = runProcess.processStderr('atmo', (data:any) => {
-	// 		console.log(`stderr: ${data}`);
-	// 		task.error = data;
-	// 		task.running = false;
-	// 	});
-		
-	// 	listeners.close = runProcess.processClose('atmo', async (code:any) => {
-	// 		console.log(`close: ${code}`);
-	// 		if (formatters.isNullOrEmpty(task.error)) {
-	// 			if (task.type === 'import') {
-	// 				await get();
-	// 				await grid?.value?.get();
-	// 				task.running = false;
-	// 				closeTaskModals();
-	// 			} else {
-	// 				task.running = false;
-	// 				page.exported.show = true;
-	// 			}
-	// 		}
-	// 	});
-	// }
-
-	// function removeRunProcessHandlers() {
-	// 	if (listeners.stdout) listeners.stdout();
-	// 	if (listeners.stderr) listeners.stderr();
-	// 	if (listeners.close) listeners.close();
-	// }
-
+	
 	function cancelTask() {
 		taskStore.cancelTask();
 		closeTaskModals();
@@ -318,7 +266,6 @@
 
 	onMounted(async () => {
 		page.loading = true;
-		// initRunProcessHandlers();
 		await get();
 		page.loading = false;
 	});

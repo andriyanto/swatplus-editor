@@ -6,6 +6,11 @@
 	import { useHelpers } from '@/helpers';
 	import { storeToRefs } from 'pinia';
 	import { useTaskStore } from '@/store/task';
+	import { useLangStore } from '@/store/lang';
+
+
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
 
 	const route = useRoute();
 	const { api, constants, currentProject, errors, formatters, runProcess, utilities } = useHelpers();
@@ -42,7 +47,7 @@
 				table: <string|null>null,
 				useObserved: false,
 				deleteExisting: true,
-				deleteExistingStations: false // ✅ Dikembalikan agar sinkron dengan fungsi hapus stasiun lama
+				deleteExistingStations: false 
 			},
 			options: {
 				methods: [
@@ -54,7 +59,7 @@
 			show: false,
 			error: <string|null>null,
 			saving: false,
-			hasObservedOnLoad: false // ✅ Dikembalikan untuk melacak status data awal
+			hasObservedOnLoad: false 
 		},
 		delete: {
 			show: false,
@@ -108,11 +113,11 @@
 			page.import.form.db = formatters.toValue(response.data.wgn_db, defaultDb);
 			page.import.form.table = formatters.toValue(response.data.wgn_table_name, defaultTable);
 			page.import.form.useObserved = response.data.has_observed_weather;
-			page.import.hasObservedOnLoad = response.data.has_observed_weather; // ✅ Diaktifkan kembali
+			page.import.hasObservedOnLoad = response.data.has_observed_weather; 
 
 			await validateStations();
 		} catch (error) {
-			page.error = errors.logError(error, 'Unable to get project information from database.');
+			page.error = errors.logError(error, t.value.common.err_db_project_info);
 		}
 		
 		page.loading = false;
@@ -128,7 +133,7 @@
 			page.validate.is_invalid = response.data.is_invalid;
 			page.validate.data = response.data.data;
 		} catch (error) {
-			page.validate.error = errors.logError(error, 'Unable to get project information from database.');
+			page.validate.error = errors.logError(error, t.value.common.err_db_project_info);
 		}
 		
 		page.validate.loading = false;
@@ -158,7 +163,7 @@
 
 		const valid = await v$.value.$validate();
 		if (!valid) {
-			page.import.error = 'Please enter a value for all fields below and try again.';
+			page.import.error = t.value.common.err_required_fields;
 		} else {
 			if (page.import.form.method === 'database') {
 				try {
@@ -176,7 +181,7 @@
 			if (formatters.isNullOrEmpty(page.import.error)) {
 				let deleteExisting = page.import.form.deleteExisting ? 'y' : 'n';
 				let createStations = page.import.form.useObserved ? 'n' : 'y';
-				let deleteExistingStations = page.import.form.deleteExistingStations && page.import.hasObservedOnLoad ? 'y' : 'n'; // ✅ Dikembalikan
+				let deleteExistingStations = page.import.form.deleteExistingStations && page.import.hasObservedOnLoad ? 'y' : 'n'; 
 
 				let args = ['import_weather', 
 					'--project_db_file='+ currentProject.projectDb,
@@ -186,7 +191,7 @@
 					'--import_method='+ page.import.form.method,
 					'--file1='+ page.import.form.csvFile1,
 					'--file2='+ page.import.form.csvFile2,
-					'--delete_existing_stations='+ deleteExistingStations]; // ✅ Dikembalikan agar argumen Python lengkap
+					'--delete_existing_stations='+ deleteExistingStations]; 
 				errors.log(args);
 
 				v$.value.$reset();
@@ -195,10 +200,10 @@
 					proc_name: 'wgn', 
 					script_name: 'swatplus_api',
 					isGridTask : true,
-					type: 'import', // ✅ Diubah langsung ke string literal 'import' karena page.import.form.type tidak ada
+					type: 'import', 
 					routePath: route.path
 				}, async () => {
-					// ✨ REFRESH UI SETELAH SAKRAL SELESAI IMPOR ✨
+
 					taskStore.task.running = false;
 					page.import.saving = false;
 					closeTaskModals();
@@ -208,7 +213,7 @@
 					await validateStations();
 
 				});
-				// closeTaskModals();
+	
 			} else {
 				page.import.saving = false;
 			}
@@ -222,7 +227,7 @@
 		
 		page.import.error = null;
 		page.import.saving = false;
-		page.import.show = true; // Buka modal di sini
+		page.import.show = true; 
 	}
 
 	function cancelTask() {
@@ -254,10 +259,7 @@
 			<page-loading :loading="page.validate.loading"></page-loading>
 			<v-alert v-if="!page.validate.loading && page.validate.is_invalid" type="warning" icon="$warning" variant="tonal" border="start" class="mb-4">
 				<p>
-					Anda memiliki generator cuaca dalam model Anda yang tidak memiliki nilai bulanan yang sesuai.
-					Nilai bulanan bukan nol untuk setiap statistik diperlukan agar SWAT+ dapat berjalan.
-					Silakan gunakan fungsi impor dengan basis data SWAT+ WGN jika Anda tidak yakin, atau lihat dokumentasi SWAT+.
-					Stasiun dengan data yang hilang tercantum di bawah ini.
+					{{ t.common.wgn_missing_data_warning }}
 				</p>
 				<ul>
 					<li v-for="station in page.validate.data">
@@ -279,8 +281,8 @@
 						<error-alert :text="page.delete.error"></error-alert>
 
 						<p>
-							Yakin akan menghapus data <strong>ALL</strong> weather generators?
-							Tindakan ini bersifat permanen dan tidak dapat dibatalkan. 
+							{{t.common.delete_confirm}} <strong>ALL</strong> weather generators?
+							{{ t.common.delete_permanent }}
 						</p>
 					</v-card-text>
 					<v-divider></v-divider>
@@ -334,7 +336,7 @@
 							<div v-else-if="page.import.form.method === 'two_file'">
 								<v-alert type="info" icon="$info" variant="tonal" border="start" class="mb-4">
 									<div>
-										Diperlukan dua file CSV. Pastikan file yang Anda impor disimpan dengan pengkodean UTF-8. 
+										{{t.common.required_two_csv}}
 										<open-in-browser url="https://plus.swat.tamu.edu/downloads/sample_files/wgn/swatplus_tf_wgn_template.zip" text="Download a template."></open-in-browser>
 									</div>
 									<ol class="mb-0">
@@ -392,13 +394,13 @@
 
 							<v-checkbox v-model="page.import.form.useObserved" hide-details>
 								<template #label>
-									Periksa apakah Anda menggunakan data cuaca yang diamati.
+									{{t.common.check_observed_weather}}
 								</template>
 							</v-checkbox>
 
 							<v-checkbox v-if="page.import.hasObservedOnLoad" v-model="page.import.form.deleteExistingStations" hide-details>
 								<template #label>
-									Delete existing weather stations? CAUTION:This will remove any imported observed weather data.
+									{{t.common.warn_del_weather}}
 								</template>
 							</v-checkbox>
 						</div>

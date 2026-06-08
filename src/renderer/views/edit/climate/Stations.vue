@@ -6,6 +6,11 @@
 	import { useHelpers } from '@/helpers';
 	import { storeToRefs } from 'pinia';
 	import {useTaskStore} from '@/store/task';
+	import { useLangStore } from '@/store/lang';
+
+
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
 
 	
 	const route = useRoute();
@@ -143,7 +148,7 @@
 
 		const valid = await v$.value.$validate();
 		if (!valid) {
-			page.import.error = 'Please enter a value for all fields below and try again.';
+			page.import.error = langStore.t.common.err_required_fields;
 		} else {
 			try {
 				let data = {
@@ -202,11 +207,11 @@
 					taskStore.task.running = false;
 					page.import.saving = false;
                 	closeTaskModals();
-					// await grid?.value?.get();
+
 					if (grid.value) {
         				await grid.value.get();
     				}
-                // Opsional: panggil get() untuk refresh data
+
             });
 			} else {
 				page.import.saving = false;
@@ -259,8 +264,8 @@
 						<error-alert :text="page.delete.error"></error-alert>
 
 						<p>
-							Yakin akan menghapus data <strong>ALL</strong> weather stations?
-							Tindakan ini bersifat permanen dan tidak dapat dibatalkan. 
+							{{t.common.delete_confirm}} <strong>{{t.common.all_delete}}</strong> weather stations?
+							{{ t.common.delete_permanent }}
 						</p>
 					</v-card-text>
 					<v-divider></v-divider>
@@ -287,7 +292,7 @@
 							<v-alert type="info" icon="$info" variant="tonal" border="start" class="mb-4">
 								Need weather data? 
 								<open-in-browser url="https://swat.tamu.edu/data/" text="See options on the SWAT website."></open-in-browser>
-								<br>Have <b>hourly</b> data? Ini hanya didukung dalam format SWAT+, bukan SWAT2012.
+								<br>Have <b>hourly</b> data? This is only supported in SWAT+ format, not SWAT2012.
 							</v-alert>
 							
 							<div class="form-group mb-0">
@@ -299,7 +304,7 @@
 
 							<v-alert type="info" icon="$info" variant="tonal" border="start" class="mb-4">
 								<span v-if="page.import.form.format === 'SWAT2012'">
-									Setiap pengukuran yang diberikan harus memiliki file bernama sebagai: <code>pcp.txt</code>, <code>rh.txt</code>, <code>solar.txt</code>, 
+									Each measurement provided must have a file named as: <code>pcp.txt</code>, <code>rh.txt</code>, <code>solar.txt</code>, 
 									<code>tmp.txt</code>, <code>wind.txt</code>, and <code>pet.txt</code>. 
 									<open-in-browser url="https://plus.swat.tamu.edu/downloads/sample_files/weather-stations/swat2012-weather-stations.zip" text="Download a sample format"></open-in-browser>
 									and 
@@ -307,26 +312,15 @@
 								</span>
 								<!-- CSV Format Instructions -->
 								<span v-else-if="page.import.form.format === 'CSV'">
-									Pastikan file CSV Anda memiliki header yang sesuai dengan format database... 
-									(tulis instruksi singkat CSV Anda di sini)
+									{{ t.common.input_csv_iklim }}
 								</span>
 								<span v-else>
-									Setiap pengukuran yang diberikan harus memiliki file bernama sebagai: <code>pcp.cli</code>, <code>hmd.cli</code>, <code>slr.cli</code>, 
-									<code>tmp.cli</code>, <code>wnd.cli</code>, and <code>pet.cli</code>.
-									<open-in-browser url="https://plus.swat.tamu.edu/downloads/sample_files/weather-stations/swatplus-weather-stations.zip" text="Download a sample format"></open-in-browser>
-									and 
-									<open-in-browser url="https://swatplus.gitbook.io/docs/user/editor/inputs/climate#swat+-format" text="read the instructions"></open-in-browser>.
+									{{t.common.input_csv_iklim1}}
+									<open-in-browser url="https://power.larc.nasa.gov/data-access-viewer/" text="Download a sample format"></open-in-browser> {{t.common.input_csv_iklim2}}
 								</span>
 
-								Pastikan file yang Anda impor disimpan dengan pengkodean UTF-8. Ganti semua karakter beraksen atau karakter non-Unicode dalam nama stasiun atau baris komentar di semua file.
+								Please ensure the files you're importing are saved with UTF-8 encoding. Replace any accent or non-unicode characters in the station names or comment lines of all files.
 							</v-alert>
-
-							<!-- <div class="form-group mb-0">
-								<select-folder-input v-model="page.import.form.weatherDataDir" :value="page.import.form.weatherDataDir"
-									:label="page.import.form.format + ' weather files directory'" required
-									invalidFeedback="Required"></select-folder-input>
-							</div> -->
-							<!-- CSV Format Instructions -->
 							<div class="form-group mb-0">
 								<select-folder-input 
 									v-model="page.import.form.weatherDataDir" 
@@ -346,13 +340,13 @@
 							<div v-if="table.total > 0">
 								<v-checkbox v-model="page.import.form.deleteExisting" hide-details>
 									<template #label>
-										Hapus stasiun yang sudah ada? Biarkan tidak dicentang untuk mempertahankannya. 
+										{{t.common.confirm_del_stations}} 
 									</template>
 								</v-checkbox>
 
 								<v-checkbox v-model="page.import.form.matchExisting" hide-details>
 									<template #label>
-										Cocokkan berkas dengan stasiun yang sudah ada? Biarkan tidak dicentang untuk membuat stasiun cuaca baru.
+										{{t.common.confirm_check_stations}}
 									</template>
 								</v-checkbox>
 							</div>							

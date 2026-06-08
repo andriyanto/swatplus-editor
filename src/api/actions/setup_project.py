@@ -11,6 +11,13 @@ from database.datasets.hru_parm_db import Plants_plt as dataset_plants
 from database.project import simulation, basin
 from .import_gis import GisImport
 from . import update_project, update_datasets
+from peewee import (
+	fn,
+	CharField,
+	BooleanField,
+	DateTimeField,
+	IntegerField
+)
 
 import sys
 import argparse
@@ -26,9 +33,9 @@ OVERWRITE_PLANTS = False
 def automatic_updates(project_db):
 	#Remove duplicate print objects
 	try:
-		subq = (simulation.Print_prt_object.select(fn.MIN(simulation.Print_prt_object.id).alias('min_id')).group_by(simulation.Print_prt_object.name))
-		(simulation.Print_prt_object.delete().where(simulation.Print_prt_object.id.not_in(subq)).execute())
-	except:
+		subq = (simulation.Print_prt_object.select(fn.MIN(getattr(simulation.Print_prt_object, 'id')).alias('min_id')).group_by(simulation.Print_prt_object.name))
+		(simulation.Print_prt_object.delete().where(getattr(simulation.Print_prt_object, 'id').not_in(subq)).execute())
+	except Exception:
 		pass
 
 	conn = lib.open_db(project_db)

@@ -4,7 +4,15 @@
 	import { decimal, required, maxLength } from '@vuelidate/validators';
 	import { useRouter } from 'vue-router';
 	import { useHelpers } from '@/helpers';
+
+	import { useLangStore } from '@/store/lang';
+	import { storeToRefs } from 'pinia';
+
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
 	// @ts-ignore
+
+	
 	import _ from 'underscore';
 
 	const router = useRouter();
@@ -151,13 +159,8 @@
 		<success-alert v-model="page.saveSuccess" :show="page.saveSuccess"></success-alert>
 
 		<v-alert type="warning" icon="$warning" variant="tonal" border="start" class="mb-4" v-if="!props.isUpdate">
-			<b>Kami sangat menyarankan untuk menggunakan fungsi impor untuk menambahkan stasiun cuaca.</b>
-			Saat membuat stasiun cuaca secara manual, kita <b>TIDAK</b> membuat file .cli Anda. Anda perlu
-			membuat file .cli Anda sendiri dan meletakkannya di direktori file input Anda (misalnya, TxtInOut) 
-			dan memastikan file tersebut disertakan dalam file.cio Anda. Selain itu, saat membuat stasiun cuaca secara manual, 
-			stasiun tersebut tidak secara otomatis ditugaskan ke objek spasial Anda. Anda perlu mengedit setiap objek spasial dan
-			menugaskan stasiun cuaca ini agar dapat menggunakannya. Untuk menugaskan stasiun cuaca secara otomatis,
-			gunakan fungsi impor untuk generator cuaca atau data cuaca yang diamati.
+			<b>{{t.common.stationform_info1}}</b>
+			{{t.common.stationform_info2}} <b>{{t.common.do_not}}</b> {{t.common.stationform_info3}}
 		</v-alert>
 
 		<v-form @submit.prevent="save">
@@ -197,12 +200,10 @@
 
 			<v-alert type="warning" icon="$warning" variant="tonal" border="start" class="mb-4">
 				<p>
-					Saat memasukkan nama file cuaca yang diamati di bawah ini, Anda dapat mulai mengetik untuk mencari file cuaca yang sudah ada yang ditambahkan selama langkah impor. Atau, cukup ketik nama lengkap file tersebut.
+					{{t.common.stationform_info4}}
 				</p>
 				<p>
-					<b>WARNING:</b> Jika Anda menambahkan berkas cuaca yang diamati di bawah ini yang tidak ada dalam berkas .cli yang Anda impor, Anda perlu mengedit berkas .cli yang sesuai secara manual untuk menyertakan nama berkas yang diamati yang baru.
-					Anda juga perlu meletakkan berkas tersebut di direktori tempat Anda berencana untuk menulis berkas input (misalnya, TxtInOut Anda).
-					Berkas harus dalam format SWAT+. Jika data cuaca Anda dalam format SWAT2012 atau dari situs web Global Weather CFSR, silakan gunakan langkah impor untuk mengonversinya ke SWAT+.
+					<b>WARNING:</b> {{t.common.stationform_info5}}
 				</p>
 			</v-alert>
 

@@ -4,6 +4,11 @@
 	import { decimal, required } from '@vuelidate/validators';
 	import { useRouter } from 'vue-router';
 	import { useHelpers } from '@/helpers';
+	import { useLangStore } from '@/store/lang';
+	import { storeToRefs } from 'pinia';
+
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
 
 	const router = useRouter();
 	const { api, constants, currentProject, errors, formatters, utilities } = useHelpers();
@@ -329,14 +334,14 @@
 					<error-alert :text="page.values.delete.error"></error-alert>
 
 					<p>
-						Are you sure you want to delete <strong>{{page.values.delete.name}}</strong>?
-						This action is permanent and cannot be undone. 
+						{{t.common.delete_confirm}}<strong>{{page.values.delete.name}}</strong>?
+						{{t.common.delete_permanent}}
 					</p>
 				</v-card-text>
 				<v-divider></v-divider>
 				<v-card-actions>
 					<v-btn @click="confirmDelete" :loading="page.values.delete.saving" color="error" variant="text">Delete</v-btn>
-					<v-btn @click="page.values.delete.show = false">Cancel</v-btn>
+					<v-btn @click="page.values.delete.show = false">{{t.common.btn_cancel}}</v-btn>
 				</v-card-actions>
 			</v-card>
 		</v-dialog>

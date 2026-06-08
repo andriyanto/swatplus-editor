@@ -4,6 +4,8 @@ import { onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useHelpers } from '@/helpers';
 import { useHeaderStore } from '@/store/header';
+import { useLangStore } from '@/store/lang';
+const langStore = useLangStore();
 
 
 const route = useRoute();
@@ -13,6 +15,9 @@ const headerStore = useHeaderStore();
 
 onMounted(() => {
   initRunProcessHandlers();
+  if (!localStorage.getItem('user-lang')) {
+      langStore.setLanguage('en');
+  }
 
 });
 onUnmounted(() => removeRunProcessHandlers()
@@ -41,9 +46,9 @@ const isMapView = computed(() => route.name?.toString().includes('MapView'));
 	<div id="app">
 		<v-app id="mainContainer">
 			<v-main>
-				<header class="app-header">
+				<!-- <header class="app-header">
 					<img :src="headerStore.headerImage" class="header-image" />
-				</header>
+				</header> -->
 				<main class="app-content">
 					<div v-if="route.path === '/map'" class="is-map-page">
 						<router-view></router-view>

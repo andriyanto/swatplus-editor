@@ -5,6 +5,12 @@ import { useHelpers } from '@/helpers';
 import SwatPlusToolboxButton from '../components/SwatPlusToolboxButton.vue';
 import SwatPlusIahrisButton from '../components/SwatPlusIahrisButton.vue';
 
+import { useLangStore } from '@/store/lang';
+import { storeToRefs } from 'pinia';
+
+const langStore = useLangStore();
+const { t } = storeToRefs(langStore);
+
 const route = useRoute();
 const { api, constants, errors, formatters, runProcess, utilities, currentProject } = useHelpers();
 
@@ -67,7 +73,7 @@ const currentResultsPath = computed(() => {
 
 async function get() {
 	if (!currentProject.projectDb || currentProject.projectDb === null) {
-        console.log("API request aborted: projectDb is not loaded yet.");
+        console.log(langStore.t.common.log_api_aborted);
         return;
     }
 	data.page.loading = true;
@@ -92,11 +98,11 @@ async function get() {
 				data.check = response2.data;
 
 				if (!response.data.has_observed_weather) {
-					data.check.hydrology.warnings.push('You are using simulated precipitation data; if you intend to calibrate, you should used measured precipitation data');
+					data.check.hydrology.warnings.push(langStore.t.common.warn_simulated_precip);
 				}
 
 				if (response.data.print.prt.nyskip < 1) {
-					data.check.hydrology.warnings.push('It is highly recomended that you use at least 1 year of model warmup; 2-5 years is better');
+					data.check.hydrology.warnings.push(langStore.t.common.warn_warmup_period);
 				}
 
 				if (data.check.setup.swatVersion === 'development') {
@@ -105,7 +111,7 @@ async function get() {
 			}
 		}
 	} catch (error) {
-		data.page.error = errors.logError(error, 'Unable to get SWAT+ Check data from database.');
+		data.page.error = errors.logError(error, t.value.common.err_get_swatcheck_data);
 	}
 
 	data.page.loading = false;
@@ -138,10 +144,10 @@ watch(() => route.path, async () => await get())
 		<v-main class="layout-fix">
 			<div class="py-3 px-6">
 				<div v-if="currentProject.isLte">
-					<h1 class="text-h5 mb-6">SWAT+ Check Not Available</h1>
+					<h1 class="text-h5 mb-6">{{ t.common.check_not_available_title }}</h1>
 
 					<v-alert color="info" icon="$info" variant="tonal" border="start" class="my-4">
-						SWAT+ Check is not available for SWAT+ lte models.
+						{{ t.common.check_not_available_msg }}
 					</v-alert>
 
 					<v-btn @click="utilities.exit" variant="flat" color="primary">Exit SWAT+ Editor</v-btn>
@@ -152,7 +158,7 @@ watch(() => route.path, async () => await get())
 					<v-btn to="/run" variant="flat" color="primary">Re-Configure Model Run</v-btn>
 				</div>
 				<div v-else-if="formatters.isNullOrEmpty(data.config.output_last_imported)">
-					<h1 class="text-h5 mb-6">Not ready to run SWAT+ Check</h1>
+					<h1 class="text-h5 mb-6">{{t.common.not_ready_run_swat}}</h1>
 
 					<v-alert color="info" icon="$info" variant="tonal" border="start" class="my-4">
 						You must run the model and analyze output before running SWAT+ Check.
@@ -165,20 +171,13 @@ watch(() => route.path, async () => await get())
 
 					<div v-if="data.page.tabIndex == 0" title="Information">
 						<p>
-							SWAT+ Check membaca output model dari proyek SWAT+ dan melakukan banyak pemeriksaan sederhana untuk
-							mengidentifikasi potensi masalah model. Tujuan dari program ini adalah untuk mengidentifikasi masalah model 
-							sejak dini dalam proses pemodelan. Masalah model yang tersembunyi seringkali mengakibatkan perlunya kalibrasi ulang atau 
-							regenerasi model, yang mengakibatkan pemborosan waktu yang dapat dihindari. Program ini dirancang untuk membandingkan berbagai
-							output SWAT+ dengan rentang nominal berdasarkan penilaian pengembang model. Peringatan tidak selalu menunjukkan masalah; 
-							tujuannya adalah untuk menarik perhatian pada prediksi yang tidak biasa. Perangkat lunak ini juga menyediakan
-							representasi visual dari berbagai output model untuk membantu pengguna pemula.
+							{{ t.common.check_overview_desc }}
 						</p>
 
 						<v-alert v-if="data.check.setup.gwflow" type="warning" icon="$warning" variant="tonal"
 							border="start" class="my-4">
 							<p>
-								Model Anda menggunakan modul GWFLOW. SWAT+ Check saat ini belum sepenuhnya kompatibel dengan GWFLOW.
-								Kami akan memperbarui ini sesegera mungkin. Untuk saat ini, nilai-nilai berikut tidak tersedia:
+								{{ t.common.gwflow_warning_msg }}
 							</p>
 							<ul>
 								<li>Hydrology: return flow, revap, recharge, baseflow total flow, deep recharge
@@ -186,7 +185,7 @@ watch(() => route.path, async () => await get())
 								<li>Landscape Nitrogen Losses: leached, groundwater yield</li>
 							</ul>
 							<p>
-								Kami mendorong Anda untuk memeriksa sendiri file output GWFLOW sampai perbaikan tersedia.
+								{{ t.common.gwflow_footer }}
 							</p>
 						</v-alert>
 
@@ -241,9 +240,7 @@ watch(() => route.path, async () => await get())
 
 					<div v-if="data.page.tabIndex == 1" title="Hydrology">
 						<p>
-							Hidrologi yang realistis adalah dasar dari setiap model. Perhatikan secara khusus rasio evapotranspirasi, baseflow, dan aliran permukaan.
-							Rasio baseflow/streamflow untuk AS disediakan oleh USGS, data ini dapat diakses melalui tombol di bawah.
-							Rentang yang ditentukan di sini adalah panduan umum saja, dan mungkin tidak berlaku untuk area simulasi Anda.
+							{{ t.common.hydrology_desc }}
 						</p>
 
 						<v-alert v-if="data.check.hydrology.warnings && data.check.hydrology.warnings.length > 0"
@@ -330,17 +327,11 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 2" title="Sediment">
 						<p>
-							Kehilangan sedimen dari bentang alam bergantung pada banyak faktor. Estimasi sedimen yang berlebihan di
-							SWAT+ paling sering disebabkan oleh produksi biomassa yang tidak memadai. Hal ini sering terjadi pada 
-							penggunaan lahan tertentu. Jika hasil sedimen dataran tinggi maksimum Anda berlebihan,
-							gunakan tab ringkasan penggunaan lahan untuk mengidentifikasi penggunaan lahan yang bermasalah.
+							{{ t.common.sediment_p1 }}
 						</p>
 
 						<p>
-						SWAT+ juga memodifikasi sedimen untuk memperhitungkan pengendapan di dalam aliran dan erosi tepian dan saluran sungai.
-						Seringkali hanya ada sedikit atau tidak ada data terukur untuk membedakan antara sedimen di daerah hulu dan perubahan sedimen di dalam aliran.
-						Sungai dapat menjadi sumber sedimen bersih, atau penampung. Modifikasi sedimen di dalam aliran dipengaruhi oleh karakteristik fisik saluran 
-						(kemiringan, lebar, kedalaman, penutup saluran, dan karakteristik substrat) dan kuantitas sedimen serta aliran dari hulu.
+						{{ t.common.sediment_p2 }}
 						</p>
 
 						<v-alert v-if="data.check.sediment.warnings && data.check.sediment.warnings.length > 0"
@@ -369,11 +360,7 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 3" title="Nitrogen Cycle">
 						<p>
-							Siklus nitrogen merupakan kunci produksi biomassa, yang pada gilirannya berdampak pada ET dan hasil sedimen.
-							Siklus nitrogen itu kompleks, umumnya tidak mungkin untuk memvalidasi rutinitas ini di luar lingkungan penelitian.
-							Yang sangat penting adalah total pupuk nitrogen yang diberikan dan kehilangan akibat penyerapan tanaman, serta penguapan dan denitrifikasi.
-							Tanah mengandung sejumlah besar nitrogen organik dalam bentuk bahan organik. Perubahan besar dalam kandungan nitrogen awal dan akhir 
-							(khususnya nitrogen organik) dapat mengindikasikan pemupukan kurang atau berlebih selama simulasi.
+							{{ t.common.n_cycle_desc }}
 						</p>
 
 						<v-alert
@@ -423,11 +410,7 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 4" title="Phosphorus Cycle">
 						<p>
-							Siklus fosfor sangat menarik di daerah aliran sungai dengan penggunaan pupuk kandang yang signifikan.
-							Tanah mengandung cadangan besar fosfor mineral dan organik. Peningkatan besar dalam kandungan fosfor mineral 
-							selama simulasi sering kali disebabkan oleh pemupukan berlebihan dengan sumber fosfor komersial atau pupuk kandang.
-							Ini juga berarti bahwa konsentrasi fosfor dalam limpasan juga meningkat selama periode simulasi.
-							Penyerapan oleh tanaman adalah jalur kehilangan dominan untuk fosfor tanah dalam sebagian besar kondisi.
+							{{ t.common.p_cycle_desc }}
 						</p>
 
 						<v-alert
@@ -468,10 +451,7 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 5" title="Plant Growth">
 						<p>
-							Pertumbuhan tanaman yang tepat adalah kunci untuk prediksi limpasan dan sedimen yang akurat. 
-							Masalah dalam pertumbuhan tanaman seringkali berkaitan dengan stres berlebihan akibat suhu atau kurangnya air/nutrisi. 
-							Data yang disajikan di sini adalah rata-rata DAS, dan mungkin tidak mencerminkan masalah dengan penggunaan lahan individual. 
-							Harap tinjau dengan saksama tab ringkasan penggunaan lahan.
+							{{ t.common.plant_growth_desc }}
 						</p>
 
 						<v-row>
@@ -554,12 +534,7 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 6" title="Landscape Nutrient Losses">
 						<p>
-							Losses nutrisi adalah aspek kritis dari banyak studi. Data yang disajikan di sini adalah kehilangan
-							dari permukaan lanskap, yang dikirimkan ke reach.
-							Ini adalah rata-rata DAS. Tautan di bawah ini berisi ringkasan kehilangan nutrisi di tepi lahan
-							dari studi pemantauan oleh tanaman individual.
-							Data ini dapat dibandingkan dengan prediksi SWAT+ untuk memverifikasi besaran yang sesuai dari
-							kehilangan yang diprediksi.
+							{{ t.common.landscape_nutrient_desc }}
 						</p>
 
 						<v-alert
@@ -646,9 +621,7 @@ watch(() => route.path, async () => await get())
 
 						<p class="font-weight-bold mt-6">Measured Nutrient Losses by Crop and Tillage</p>
 						<p>
-							Dari Harmel, D., dkk. 2006 Kompilasi Data Beban Nutrien Terukur untuk
-							Penggunaan Lahan Pertanian di Amerika Serikat. <em>Jurnal Asosiasi Sumber Daya Air Amerika</em>
-							42(5):1163-1178.
+							From Harmel, D., et al.  2006 Compilation of Measured Nutrient Load Data for Agricultural Land Uses in the United States. <em>Journal of the American Water Resources Association</em> 42(5):1163-1178.
 						</p>
 						<p>
 							<img class="img-fluid" :src="`${utilities.publicPath}/swat-check/nut_croptype2.png`"
@@ -661,10 +634,7 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 7" title="Land Use Summary">
 						<p>
-							Kesalahan model seringkali terbatas pada jenis penggunaan lahan tertentu.
-							Jika penggunaan lahan tersebut relatif kecil, masalah ini mungkin tidak akan terdeteksi di muara DAS selama kalibrasi.
-							Seringkali, penggunaan lahan kecil ini menjadi fokus pengembangan skenario, dan kesalahan baru terlihat
-							setelah banyak upaya kalibrasi dilakukan.
+							{{ t.common.landuse_summary_desc }}
 						</p>
 
 						<v-alert
@@ -679,8 +649,7 @@ watch(() => route.path, async () => await get())
 
 						<p class="font-weight-bold">Summary by Reported Land Use</p>
 						<p>
-							This table contains a few important predictions summarized by land use. These should be
-							reviewed carefully.
+							{{ t.common.landuse_table_desc }}
 						</p>
 
 						<div>
@@ -727,8 +696,7 @@ watch(() => route.path, async () => await get())
 						<div v-if="data.check.landUseSummary.hruLevelWarnings.length > 0">
 							<p class="font-weight-bold">HRU Level Warnings</p>
 							<p>
-								These are provided only to help isolate problem HRUs within a particular land use.
-								We do not recommend that these be used during routine checking of model output.
+								{{ t.common.hru_warning_desc }}
 							</p>
 							<ul>
 								<li v-for="(warning, i) in data.check.landUseSummary.hruLevelWarnings" :key="i">
@@ -738,12 +706,7 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 8" title="Instream Processes">
 						<p>
-							In-stream processes may have a large impact on sediment and nutrient loads. It is difficult
-							to gage appropriate values for these outputs.
-							In-stream sediment change can be either positive or negative. Typically streams are a net
-							sink for nutrients.
-							Channel geomorphology can provide some guidance as to the net contribution of in-stream
-							processes.
+							{{ t.common.instream_desc }}
 						</p>
 
 						<v-alert
@@ -849,10 +812,7 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 9" title="Point Sources">
 						<p>
-							Sumber titik terus-menerus melepaskan polutan ke aliran sungai. Ini adalah fitur opsional di
-							SWAT+. Ringkasan ini disajikan agar kontribusi relatif dari sumber-sumber ini dapat diverifikasi.
-							Kontribusi sumber titik sangat bervariasi sehingga tidak ada rentang yang masuk akal yang dapat
-							diterapkan ke semua DAS.
+							{{ t.common.point_sources_desc }}
 						</p>
 
 						<v-alert v-if="data.check.pointSources.warnings && data.check.pointSources.warnings.length > 0"
@@ -964,12 +924,9 @@ watch(() => route.path, async () => await get())
 					</div>
 					<div v-if="data.page.tabIndex == 10" title="Reservoirs">
 						<p>
-							Waduk merupakan fitur opsional di SWAT+. Hidrologi cekungan dengan waduk besar mungkin sepenuhnya
-							didominasi oleh proses waduk dan laju pelepasan. Data yang disajikan di bawah ini adalah rata-rata dari semua waduk; <a href="#" @click.prevent="data.modals.reservoirs.table = true">
-							lihat data untuk masing-masing waduk</a>.
-							Statistik yang disajikan di sini dirancang untuk mengidentifikasi masalah waduk umum. Penggunaan
-							laju pelepasan yang ditentukan pengguna dapat menyebabkan waduk terus bertambah volumenya atau benar-benar kering.
-							Masalah umum ini dapat dideteksi melalui rasio volume akhir/awal dan statistik fraksi periode kosong di bawah ini.
+							{{ t.common.res_desc_part1 }} <a href="#" @click.prevent="data.modals.reservoirs.table = true">
+							{{ t.common.res_link }}</a>.
+							{{ t.common.res_desc_part2 }}
 						</p>
 
 						<v-alert v-if="data.check.reservoirs.warnings && data.check.reservoirs.warnings.length > 0"

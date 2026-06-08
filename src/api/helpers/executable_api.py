@@ -17,3 +17,6 @@ class Unbuffered(object):
 class ExecutableApi:
 	def emit_progress(self, percent, message):
 		print(json.dumps({'percent': percent, 'message': message}))
+  
+	def emit_error(self, message):
+		print(json.dumps({'error': message}))

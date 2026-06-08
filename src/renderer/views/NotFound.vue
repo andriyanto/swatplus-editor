@@ -1,5 +1,9 @@
 <script setup lang="ts">
-	
+import { useLangStore } from '@/store/lang';
+import { storeToRefs } from 'pinia';
+
+const langStore = useLangStore();
+const { t } = storeToRefs(langStore);
 </script>
 
 <template>
@@ -9,9 +13,8 @@
 		<h2 class="text-h5 mb-6">Page Not Found</h2>
 
 		<p class="mb-4 text-medium-emphasis">
-			The item you clicked does not go to an active page.
-			This is a bug in the editor. Please report the route: <strong>{{ $route.path }}</strong>
-			to the <open-in-browser url="https://groups.google.com/d/forum/swatplus-editor" text="SWAT+ Editor user group" class="text-primary"></open-in-browser>.
+			{{ t.common.err_routing_part1 }} <strong>{{ $route.path }}</strong>
+			{{ t.common.err_routing_part2 }} <open-in-browser url="https://groups.google.com/d/forum/swatplus-editor" text="SWAT+ Editor user group" class="text-primary"></open-in-browser>.
 		</p>
 
 		<v-divider class="mb-4"></v-divider>

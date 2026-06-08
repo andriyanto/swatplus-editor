@@ -392,13 +392,6 @@ autoUpdater.on('update-downloaded', (info) => {
 	mainWindow.webContents.send('app-update-downloaded', 'Update downloaded.');
 });
 
-/*app.on('ready', function()  {
-	if (process.platform === 'win32') {
-		console.log('Checking for updates...');
-		autoUpdater.checkForUpdates();
-	}
-});*/
-
 ipcMain.on('download-update', (event, arg) => {
 	autoUpdater.downloadUpdate();
 });

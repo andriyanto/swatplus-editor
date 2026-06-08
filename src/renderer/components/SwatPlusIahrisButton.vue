@@ -81,10 +81,10 @@
 		<v-card :title="unavailableTitle">
 			<v-card-text>
 				<p v-if="unavailable.norun" class="py-5">
-					Anda harus menjalankan model terlebih dahulu sebelum membuka proyek Anda di SWAT+ IAHRIS.
+					You must run the model before opening your project in SWAT+ IAHRIS.
 				</p>
 				<p v-else-if="unavailable.notinstalled" class="py-5">
-					SWAT+ IAHRIS adalah perangkat lunak yang menghubungkan SWAT+ ke IAHRIS untuk secara otomatis menghasilkan laporan tentang Indikator Perubahan Hidrologi di Sungai.
+					SWAT+ IAHRIS is software that links SWAT+ to IAHRIS to automatically generate reports on Indicators of Hydrologic Alteration in RIverS.
 				</p>
 			</v-card-text>
 			<v-divider></v-divider>

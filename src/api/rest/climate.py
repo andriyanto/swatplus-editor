@@ -73,6 +73,11 @@ def stations():
 		if not has_db:
 			abort(400, error)
 		project_base.db.execute_sql("PRAGMA foreign_keys = ON")
+
+		from database.project.data_cuaca import StationLocations, WeatherDailyData
+		WeatherDailyData.delete().execute()
+		StationLocations.delete().execute()
+  
 		Weather_file.delete().execute()
 		Weather_sta_cli.delete().execute()
 		m = Project_config.get()

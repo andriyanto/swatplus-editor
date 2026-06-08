@@ -52,8 +52,7 @@ contextBridge.exposeInMainWorld('electronApi', {
 			ipcRenderer.removeListener(channel, subscription);
 		}
 	},
-	//processStderr: (proc_name:string, callback:(_event:any, data:any) => any) => ipcRenderer.on(`process-stderr-${proc_name}`, (_event:any, code:any) => callback(_event, code)),
-	//processClose: (proc_name:string, callback:(_event:any, data:any) => any) => ipcRenderer.on(`process-close-${proc_name}`, (_event:any, code:any) => callback(_event, code)),
+
 	killProcess: (pid:any) => ipcRenderer.send('kill-process', pid),
 	runSwat: (inputDir:string, modelExe:string) => {return ipcRenderer.sendSync('run-swat', inputDir, modelExe) },
 	getSwatExeOptions: async () => {return await ipcRenderer.invoke('get-swat-exe-options') },

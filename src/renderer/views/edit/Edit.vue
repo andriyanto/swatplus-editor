@@ -2,13 +2,15 @@
 import { reactive, watch, onMounted } from 'vue';
 import { RouteRecordName, useRoute } from 'vue-router';
 import { useHelpers } from '@/helpers';
-// import { useTaskStore } from '@/store/task';
-// import { storeToRefs } from 'pinia';
+
+import { useLangStore } from '@/store/lang';
+import { storeToRefs } from 'pinia';
+
+const langStore = useLangStore();
+const { t } = storeToRefs(langStore);
 
 const route = useRoute();
 const { currentProject } = useHelpers();
-// const taskStore = useTaskStore();
-// const { task } = storeToRefs(taskStore);
 
 interface Page {
 	loading: boolean,
@@ -301,37 +303,25 @@ onMounted(() => processSubOpen(route.name));
 					<h1 class="text-h5 mb-3 font-weight-bold tracking-tight judul">Edit SWAT+ inputs</h1>
 
 					<p class="isi">
-						Gunakan menu di sebelah kiri untuk mengedit data input SWAT+. Kami sarankan untuk memulai di
-						bagian
-						iklim, dan mengimpor generator cuaca dan data cuaca yang Anda amati.
-						Jika Anda berasal dari GIS, saat Anda mengimpor generator cuaca atau data yang diamati, sistem
-						akan
-						membuat stasiun cuaca dan mencocokkannya dengan objek spasial Anda secara otomatis.
+						{{ t.common.edit_p1 }}
 					</p>
 
 					<h2 class="text-h5 mb-3 mt-4 judul">Help</h2>
 					<p class="isi">
-						Di sudut kanan atas dari setiap bagian editor yang terhubung dari menu kiri adalah ikon buku
+						{{ t.common.edit_help_p1 }}
 						<font-awesome-icon :icon="['fas', 'book']" /> yang dapat Anda klik
-						untuk melihat situs web dokumentasi kami untuk bagian tersebut. Dokumentasi masih dalam proses
-						pengembangan.
-
-						Sebagai tambahan, klik <router-link to="/help" class="text-primary"><font-awesome-icon
-								:icon="['fas', 'question-circle']" /></router-link> di sudut kiri bawah jendela ini
-						untuk tautan ke sumber daya yang akan membantu Anda dengan SWAT+ dan editor. Kelompok pengguna
-						tersedia di	mana Anda dapat mengajukan pertanyaan jika Anda mengalami kesulitan.
+						{{ t.common.edit_help_p2 }}
+       					 <br><br>
+        				{{ t.common.edit_help_p3 }} <router-link to="/help" class="text-primary"><font-awesome-icon
+								:icon="['fas', 'question-circle']" /></router-link> {{ t.common.edit_help_p4 }}
 					</p>
 
 					<v-divider class="my-6"></v-divider>
 
 					<p class="isi">
-						Fitur SWAT+ apa pun yang tidak tersedia melalui editor dapat dimodifikasi secara manual melalui
-						file input teks.
-						Edit data Anda sesuai kebutuhan melalui editor, lalu lanjutkan ke bagian <router-link to="/run"
-							class="text-primary">Run SWAT+</router-link>.
-						Setelah file awal Anda ditulis, Anda dapat memodifikasinya atau menambahkan file input SWAT+
-						tambahan ke	model Anda.
-						Buat salinan perubahan apa pun sebelum kembali ke Editor SWAT+, karena editor dapat menimpanya.
+						{{ t.common.edit_footer_p1 }} <router-link to="/run"
+							class="text-primary">{{t.common.run_swat_title}}</router-link>.
+						{{ t.common.edit_footer_p2 }}
 					</p>
 				</div>
 				<router-view></router-view>

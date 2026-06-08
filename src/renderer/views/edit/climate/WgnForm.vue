@@ -4,6 +4,11 @@
 	import { decimal, required, maxLength } from '@vuelidate/validators';
 	import { useRouter } from 'vue-router';
 	import { useHelpers } from '@/helpers';
+	import { useLangStore } from '@/store/lang';
+	import { storeToRefs } from 'pinia';
+
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
 
 	const router = useRouter();
 	const { api, constants, currentProject, errors, formatters, utilities } = useHelpers();
@@ -531,7 +536,7 @@
 				<v-divider></v-divider>
 				<v-card-actions>
 					<v-btn @click="saveValues" :loading="page.values.form.saving" color="primary" variant="text">Save Changes</v-btn>
-					<v-btn @click="page.values.form.show = false">Cancel</v-btn>
+					<v-btn @click="page.values.form.show = false">{{t.common.btn_cancel}}</v-btn>
 				</v-card-actions>
 			</v-card>
 		</v-dialog>
@@ -542,14 +547,14 @@
 					<error-alert :text="page.values.delete.error"></error-alert>
 
 					<p>
-						Yakin akan menghapus data <strong>{{page.values.delete.name}}</strong>?
-						Tindakan ini bersifat permanen dan tidak dapat dibatalkan. 
+						{{t.common.delete_confirm}} <strong>{{page.values.delete.name}}</strong>?
+						{{t.common.delete_permanent}}
 					</p>
 				</v-card-text>
 				<v-divider></v-divider>
 				<v-card-actions>
 					<v-btn @click="confirmDelete" :loading="page.values.delete.saving" color="error" variant="text">Delete</v-btn>
-					<v-btn @click="page.values.delete.show = false">Cancel</v-btn>
+					<v-btn @click="page.values.delete.show = false">{{t.common.btn_cancel}}</v-btn>
 				</v-card-actions>
 			</v-card>
 		</v-dialog>

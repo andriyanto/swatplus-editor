@@ -39,3 +39,5 @@ export interface GridViewHeader {
 	defaultIfNull?: string|null;
 	formatter?: (value:any) => string;
 }
+
+

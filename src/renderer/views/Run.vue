@@ -8,12 +8,17 @@ import SwatPlusToolboxButton from '../components/SwatPlusToolboxButton.vue';
 import SwatPlusIahrisButton from '../components/SwatPlusIahrisButton.vue';
 import moment from 'moment';
 
+import { useLangStore } from '@/store/lang';
+
+
 const route = useRoute();
 const taskStore = useTaskStore();
 const { task } = storeToRefs(taskStore);
 const { api, constants, errors, formatters, currentProject, runProcess, utilities } = useHelpers();
 
-const requiredForCheckMessage = 'Some smaller output files are used in SWAT+ Check and unselecting them is disabled.'
+const langStore = useLangStore();
+const { t } = storeToRefs(langStore);
+
 
 let data: any = reactive({
 	page: {
@@ -271,7 +276,6 @@ const noneSelected = computed(() => {
 });
 
 const totalProgress = computed(() => {
-	// if (!data.task.running) return 0;
 	if (!task.value.running) return 0;
 
 	let numTasks = 3;
@@ -285,16 +289,16 @@ const totalProgress = computed(() => {
 });
 
 const modalTitle = computed(() => {
-	if (data.status.inputs) return 'Menulis File Input SWAT+';
+	if (data.status.inputs) return 'Writing SWAT+ Input Files';
 	else if (data.status.model) return `Running SWAT+ ${selectedExeDescription.value}`;
-	else if (data.status.output) return 'Membaca File Output SWAT+';
+	else if (data.status.output) return 'Reading SWAT+ Output Files';
 	return 'Running SWAT+';
 })
 
 const errorTitle = computed(() => {
-	if (data.status.inputs) return 'Terjadi kesalahan saat menulis file input Anda.';
-	else if (data.status.output) return 'Terjadi kesalahan saat memproses file output Anda.';
-	return 'SWAT+ Editor mengalami kesalahan.';
+	if (data.status.inputs) return t.value.common.err_writing_inputs;
+	else if (data.status.output) return t.value.common.err_processing_output;
+	return t.value.common.err_default;
 })
 
 const currentResultsPath = computed(() => {
@@ -316,7 +320,7 @@ const selectedExeDescription = computed(() => {
 async function refreshExeOptions() {
 	data.exeOptions = await runProcess.getSwatExeOptions();
 	if (data.exeOptions === null || data.exeOptions.length === 0) {
-		data.page.error = 'Tidak ditemukan opsi eksekusi SWAT+. Ada kemungkinan instalasi Anda rusak. Silakan coba instal ulang aplikasi.';
+		data.page.error = t.value.common.err_no_exe_found;
 	}
 
 	if (!data.exeOptions.some((x: any) => x.fileName === data.selection.exeFile)) {
@@ -327,10 +331,11 @@ async function refreshExeOptions() {
 
 async function get() {
 
-	if (!currentProject.projectDb || currentProject.projectDb === null) {
-        console.log("API request aborted: projectDb is not loaded yet.");
-        return;
-    }
+	if (formatters.isNullOrEmpty(currentProject.projectDb)) {
+		data.page.error = t.value.common.errContainer;
+		console.warn(langStore.t.common.log_api_aborted);
+		return; // Berhenti di sini
+	}
 
 	data.page.loading = true;
 	data.page.error = null;
@@ -349,7 +354,7 @@ async function get() {
 
 		data.exeOptions = await runProcess.getSwatExeOptions();
 		if (data.exeOptions === null || data.exeOptions.length === 0) {
-			throw new Error('Tidak ditemukan opsi eksekusi SWAT+. Ada kemungkinan instalasi Anda rusak. Silakan coba instal ulang aplikasi.');
+			throw new Error(t.value.common.err_no_exe_found);
 		}
 		data.selection.exeFile = data.exeOptions.find((x: any) => x.fileName === data.config.swat_exe_filename)?.fileName
 			|| data.exeOptions.find((x: any) => x.isDefault)?.fileName || data.exeOptions[0]?.fileName || '';
@@ -383,7 +388,7 @@ async function get() {
 
 		await validateWgn();
 	} catch (error) {
-		data.page.error = errors.logError(error, 'Tidak dapat memperoleh informasi proyek dari basis data.');
+		data.page.error = errors.logError(error, t.value.common.err_db_project_info);
 	}
 
 	data.page.loading = false;
@@ -391,7 +396,6 @@ async function get() {
 
 onMounted(async () => {
 	data.page.loading = true;
-	// initRunProcessHandlers();
 	await get();
 	data.page.loading = false;
 });
@@ -413,7 +417,7 @@ async function runSelected() {
 	task.value.hasCorrectOutput = false;
 
 	if (noneSelected.value) {
-		data.page.saveError = 'Silakan pilih setidaknya satu tugas untuk dijalankan';
+		data.page.saveError = t.value.common.err_select_task;
 	} else {
 		try {
 			let startTimeUpdate = getDayYearFromDateString(data.timeDisplay.startDate);
@@ -450,14 +454,14 @@ async function runSelected() {
 				runInputs();
 			} else if (data.selection.model) {
 				if (formatters.isNullOrEmpty(data.config.input_files_last_written))
-					data.page.saveError = 'Anda harus menulis file input sebelum menjalankan model.';
+					data.page.saveError = t.value.common.err_must_write_inputs;
 				else {
 					data.page.run.show = true;
 					runModel();
 				}
 			} else if (data.selection.output) {
 				if (formatters.isNullOrEmpty(data.config.swat_last_run))
-					data.page.saveError = 'Anda harus menjalankan SWAT+ sebelum menganalisis output.';
+					data.page.saveError = t.value.common.err_must_run_swat;
 				else {
 					data.page.run.show = true;
 					runOutput();
@@ -465,7 +469,7 @@ async function runSelected() {
 			}
 		} catch (error) {
 			console.log(error);
-			data.page.saveError = errors.logError(error, 'Tidak dapat memperbarui direktori file input.');
+			data.page.saveError = errors.logError(error, t.value.common.err_update_input_dir);
 		}
 	}
 
@@ -474,44 +478,12 @@ async function runSelected() {
 	data.page.showError = data.page.saveError !== null;
 }
 
-// function runInputs() {
-// 	data.status.inputs = true;
-// 	data.status.model = false;
-// 	data.status.output = false;
-// 	data.status.saveScenario = false;
-
-// 	let args = [
-// 		'write_files',
-// 		'--project_db_file=' + currentProject.projectDb,
-// 		'--swat_version=' + selectedExeDescription.value
-// 	];
-
-// 	if (data.inputs.ignore_files.length > 0) args.push(`--ignore_files=${data.inputs.ignore_files.join(',')}`);
-// 	if (data.inputs.ignore_cio_files.length > 0) args.push(`--ignore_cio_files=${data.inputs.ignore_cio_files.join(',')}`);
-// 	if (data.inputs.custom_cio_files.length > 0) args.push(`--custom_cio_files=${data.inputs.custom_cio_files.join(',')}`);
-
-// 	taskStore.runTask(args, { 
-//         proc_name: 'runmodel', 
-//         script_name: 'swatplus_api',
-// 		routePath: route.path
-//    	}, () => {
-//         // Logika workflow dipindahkan ke sini
-//         if (data.status.inputs && data.selection.model) {
-//             runModel(); 
-//         } else {
-//             // Logika penyelesaian akhir
-//             data.page.completed.show = true;
-//         }
-// 	});
-// }
 function runInputs() {
-	// 1. Atur status indikator pemrosesan UI lokal
 	data.status.inputs = true;
 	data.status.model = false;
 	data.status.output = false;
 	data.status.saveScenario = false;
 
-	// 2. Susun argumen CLI untuk dikirim ke skrip Python API
 	let args = [
 		'write_files',
 		'--project_db_file=' + currentProject.projectDb,
@@ -522,64 +494,26 @@ function runInputs() {
 	if (data.inputs.ignore_cio_files.length > 0) args.push(`--ignore_cio_files=${data.inputs.ignore_cio_files.join(',')}`);
 	if (data.inputs.custom_cio_files.length > 0) args.push(`--custom_cio_files=${data.inputs.custom_cio_files.join(',')}`);
 
-	// 3. Jalankan melalui taskStore dengan menyisipkan alur Callback Pipeline
 	taskStore.runTask(args, { 
 		proc_name: 'runmodel', 
 		script_name: 'swatplus_api',
 		routePath: route.path,
 		project: currentProject
-	}, async () => { // Gunakan async karena di dalam 'else' kita memanggil 'await get()'
-		errors.log('Done inputs');
-
-		// --- LOGIKA PIPELINE SEKUENSIAL (PENGGANTI LISTENERS.CLOSE ASLI) ---
-		
+	}, async () => { 
+	
 		if (data.selection.model) {
-			// Jika pengguna mencentang "Run Model", langsung oper ke tahap berikutnya
-			errors.log('Lanjut ke run model...');
 			runModel(); 
 		} else if (data.selection.output) {
-			// Jika model dilewati tetapi pengguna mencentang "Read Output"
-			errors.log('Model dilewati, langsung membaca output...');
 			runOutput();
 		} else {
-			// Jika HANYA menulis file input saja tanpa kelanjutan tugas lain
-			errors.log('Semua tugas selesai dijalankan.');
-			
-			taskStore.task.running = false; // Matikan loading state di store
-			closeTaskModals();              // Tutup modal popup pemrosesan
-			await get();                    // Refresh data komponen agar tanggal "Last Written" terbarui
-			data.page.completed.show = true; // Tampilkan dialog sukses selesai
-			taskStore.task.currentPids = []; // Bersihkan sisa PID dari memori store
+			taskStore.task.running = false; 
+			closeTaskModals();              
+			await get();                    
+			data.page.completed.show = true; 
+			taskStore.task.currentPids = []; 
 		}
 	});
 }
-
-// function runModel() {
-// 	if (task.value.killMode) return;
-// 	data.status.inputs = false;
-// 	data.status.model = true;
-// 	data.status.output = false;
-// 	data.status.saveScenario = false;
-
-// 	// runTask(true, null, data.config.input_files_dir, data.selection.exeFile);
-// 	taskStore.runSwatTask(
-//         data.config.input_files_dir, 
-//         data.selection.exeFile,
-// 		{ project: currentProject, routePath: route.path },
-//         () => {
-//             // LOGIKA WORKFLOW SETELAH SWAT SELESAI
-//             if (data.selection.output) {
-//                 runOutput(); // Panggil fungsi runOutput yang sudah ada di Run.vue
-//             } else {
-//                 // Selesaikan semua proses
-//                 task.value.running = false;
-//                 closeTaskModals();
-//                 data.page.completed.show = true;
-//                 // ... update data/get API lainnya
-//             }
-//         }
-//     );
-// }
 
 function runModel() {
 	if (task.value.killMode) return;
@@ -592,70 +526,26 @@ function runModel() {
         data.config.input_files_dir, 
         data.selection.exeFile,
 		{ project: currentProject, routePath: route.path, timeStart: data.time.yrc_start, timeEnd: data.time.yrc_end },
-        async () => { // Tambahkan async di sini
-            errors.log('Done model');
-            
+        async () => { 
+        
             try {
-                // WAJIB: Simpan status keberhasilan simulasi model ke database
                 await api.put(`setup/save-model-run`, {}, currentProject.getApiHeader());
             } catch (err) {
-                console.error("Gagal menyimpan riwayat run model ke DB:", err);
+                console.error(t.value.common.err_save_model_run, err);
             }
 
-            // Lanjut ke langkah berikutnya
             if (data.selection.output) {
                 runOutput(); 
             } else {
                 task.value.running = false;
                 closeTaskModals();
-                await get(); // Selalu refresh data lokal agar UI sinkron
+                await get(); 
                 data.page.completed.show = true;
             }
         }
     );
 }
 
-// function runOutput() {
-// 	if (task.value.killMode) return;
-// 	data.status.inputs = false;
-// 	data.status.model = false;
-// 	data.status.output = true;
-// 	data.status.saveScenario = false;
-
-// 	let args = [
-// 		'read_output',
-// 		'--output_files_dir=' + data.config.input_files_dir.replace(/\\/g, "/"),
-// 		'--output_db_file=' + runProcess.outputDbPath(data.config.input_files_dir),
-// 		'--swat_version=' + selectedExeDescription.value,
-// 		'--editor_version=' + constants.appSettings.version,
-// 		'--project_name=' + currentProject.name,
-// 		'--only_read_swatcheck=' + (data.selection.swatCheckOnly ? 'y' : 'n')
-// 	];
-
-// 	if (!formatters.isNullOrEmpty(data.page.outputSkip.files)) {
-// 		args.push(`--skip_files=${data.page.outputSkip.files}`);
-// 	}
-
-// 	taskStore.runTask(args, {
-//         proc_name: 'runmodel', // Tetap gunakan proc_name yang sesuai agar listener menangkap output
-//         script_name: 'swatplus_api',
-//         project: currentProject,
-//         routePath: route.path
-//     }, async () => {
-//         // --- LOGIKA WORKFLOW SETELAH READ_OUTPUT SELESAI ---
-//         errors.log('Done output');
-        
-//         // Simpan status output ke database
-//         await api.put(`setup/save-output-read`, {}, currentProject.getApiHeader());
-        
-//         // Reset state dan tampilkan hasil
-//         task.value.running = false;
-//         closeTaskModals();
-//         await get(); // Refresh data
-//         data.page.completed.show = true;
-//         task.value.currentPids = [];
-//     });
-// }
 
 function runOutput() {
 	if (task.value.killMode) return;
@@ -684,23 +574,20 @@ function runOutput() {
 		project: currentProject,
 		routePath: route.path
 	}, async () => {
-		// --- LOGIKA WORKFLOW SETELAH READ_OUTPUT SELESAI ---
-		errors.log('Done output');
-		
+	
 		try {
-			// Simpan status output ke database melalui API HTTP
 			await api.put(`setup/save-output-read`, {}, currentProject.getApiHeader());
 		} catch (err) {
-			console.error("Gagal menyimpan status output read ke database:", err);
+			console.error(t.value.common.err_save_model_run, err);
 		}
 		
-		// Reset state internal store terlebih dahulu
+
 		task.value.running = false;
 		task.value.currentPids = [];
 
-		// Jalankan fungsi refresh data & manipulasi UI lokal di Run.vue
+
 		closeTaskModals();
-		await get(); // Refresh data halaman Run
+		await get();
 		data.page.completed.show = true;
 	});
 }
@@ -710,7 +597,7 @@ function saveScenario() {
 	data.page.saveScenario.error = null;
 
 	if (formatters.isNullOrEmpty(data.page.saveScenario.name)) {
-		data.page.saveScenario.error = 'Silakan masukkan nama untuk scenario.';
+		data.page.saveScenario.error = t.value.common.err_enter_scenario_name;
 	} else {
 		data.status.inputs = false;
 		data.status.model = false;
@@ -726,20 +613,20 @@ function saveScenario() {
 		];
 
 		taskStore.runTask(args, {
-            proc_name: 'runmodel', // Gunakan proc_name yang sesuai agar API menangani request ini
+            proc_name: 'runmodel', 
             script_name: 'swatplus_api',
             project: currentProject,
             routePath: route.path
         }, () => {
-            // --- LOGIKA WORKFLOW SETELAH SAVE SELESAI ---
+
             task.value.running = false;
             closeTaskModals();
             
-            // Tampilkan notifikasi bahwa skenario berhasil disimpan
+
             data.page.savedScenario.show = true;
             data.status.saveScenario = false;
             
-            // Reset PID list
+
             task.value.currentPids = [];
         });
 	}
@@ -752,7 +639,6 @@ function cancelTask() {
 	data.status.model = false;
 	data.status.output = false;
 	data.status.saveScenario = false;
-    // Panggil fungsi UI lokal Anda untuk menutup modal
     closeTaskModals();
 }
 
@@ -790,7 +676,6 @@ function getDayYearFromDateString(value: any, isEnd = false) {
 }
 
 function checkAllDaily() {
-	//data.options.printAll.daily = !data.options.printAll.daily;
 	for (let i = 0; i < data.print.objects.length; i++) {
 		data.print.objects[i].daily = data.options.printAll.daily;
 		pushChg(i);
@@ -798,7 +683,6 @@ function checkAllDaily() {
 }
 
 function checkAllMonthly() {
-	//data.options.printAll.monthly = !data.options.printAll.monthly;
 	for (let i = 0; i < data.print.objects.length; i++) {
 		data.print.objects[i].monthly = data.options.printAll.monthly;
 		pushChg(i);
@@ -806,7 +690,6 @@ function checkAllMonthly() {
 }
 
 function checkAllYearly() {
-	//data.options.printAll.yearly = !data.options.printAll.yearly;
 	for (let i = 0; i < data.print.objects.length; i++) {
 		if (requiredForCheck(`${data.print.objects[i].name}_yr`)) continue;
 		data.print.objects[i].yearly = data.options.printAll.yearly;
@@ -815,7 +698,6 @@ function checkAllYearly() {
 }
 
 function checkAllAvann() {
-	//data.options.printAll.avann = !data.options.printAll.avann;
 	for (let i = 0; i < data.print.objects.length; i++) {
 		if (requiredForCheck(`${data.print.objects[i].name}_aa`)) continue;
 		data.print.objects[i].avann = data.options.printAll.avann;
@@ -858,7 +740,7 @@ const outputLogFile = computed(() => {
 					<h1 class="text-h5">Not ready to run the model</h1>
 
 					<v-alert color="red" icon="$info" variant="tonal" border="start" class="my-4">
-						Anda harus menambahkan generator dan stasiun cuaca sebelum menulis input dan menjalankan model.
+						{{ t.common.warn_add_weather }}
 					</v-alert>
 
 					<v-btn to="/edit/climate/wgn" variant="flat" color="primary">Add Now</v-btn>
@@ -883,8 +765,8 @@ const outputLogFile = computed(() => {
 							<v-expansion-panel-text>
 								<div class="mt-5">
 									<select-folder-input v-model="data.config.input_files_dir"
-										:value="data.config.input_files_dir" label="Directory to write your input files"
-										required invalidFeedback="Please select a folder"></select-folder-input>
+										:value="data.config.input_files_dir" :label="t.common.dir_to_write_input"
+										required :invalidFeedback="t.common.please_select_folder"></select-folder-input>
 								</div>
 								<div>
 									<v-btn @click="data.page.inputs.show = true" variant="flat" class="border">Advanced:
@@ -905,10 +787,9 @@ const outputLogFile = computed(() => {
 							<v-expansion-panel-text>
 								<div class="mt-5">
 									<p v-if="data.hasObservedWeather">
-										Pastikan tanggal simulasi Anda berada dalam rentang tanggal yang tercantum dalam
-										<router-link to="/edit/climate/stations" class="text-primary">observed weather
-											files</router-link>.
-										Tanggal simulasi di luar rentang ini akan menghasilkan simulasi cuaca.
+										{{ t.common.warn_dates_part1 }}
+										<router-link to="/edit/climate/stations" class="text-primary">{{ t.common.warn_dates_link }}</router-link>.
+										{{ t.common.warn_dates_part2 }}
 									</p>
 
 									<div class="form-group mb-5">
@@ -957,7 +838,7 @@ const outputLogFile = computed(() => {
 										</div>
 
 										<div class="text-body-2 mb-1">
-											<em>{{ requiredForCheckMessage }}</em>
+											<em>{{ t.common.msg_required_for_check }}</em>
 										</div>
 
 										<v-table class="table-editor" density="compact">
@@ -1205,9 +1086,7 @@ const outputLogFile = computed(() => {
 																			:icon="['fas', 'fa-info-circle']"
 																			class="ml-1 text-secondary"></font-awesome-icon>
 																	</template>
-																	Printing to CSV format is now required to process
-																	output files more efficiently with
-																	fewer errors.
+																	{{ t.common.tooltip_csv_required }}
 																</v-tooltip>
 															</div>
 
@@ -1223,9 +1102,7 @@ const outputLogFile = computed(() => {
 																			:icon="['fas', 'fa-info-circle']"
 																			class="ml-1 text-secondary"></font-awesome-icon>
 																	</template>
-																	Disarankan untuk tetap memilih opsi ini jika Anda
-																	ingin melihat pratinjau operasi
-																	manajemen Anda di SWAT+ Check.
+																	{{ t.common.tooltip_mgtout_recommended }}
 																</v-tooltip>
 															</div>
 
@@ -1269,39 +1146,26 @@ const outputLogFile = computed(() => {
 					<error-alert :text="modelIssues.wgn.error"></error-alert>
 					<page-loading :loading="modelIssues.wgn.loading"></page-loading>
 					<div v-if="!modelIssues.wgn.loading && modelIssues.wgn.is_invalid">
-						<h1 class="text-h5 mb-4">Model Issues</h1>
+						<h1 class="text-h5 mb-4">{{ t.common.wgn_issues_title }}</h1>
 						<v-alert type="warning" icon="$warning" variant="tonal" border="start" class="mb-4">
 							<p>
-								Anda punya <router-link class="text-warning" to="/edit/climate/wgn">weather
-									generators</router-link> Dalam
-								model Anda yang tidak memiliki nilai bulanan yang sesuai.
-								Nilai bulanan bukan nol untuk setiap statistik diperlukan agar SWAT+ dapat berjalan.
-								Silakan gunakan fungsi impor dengan basis data SWAT+ WGN jika Anda tidak yakin, atau
-								lihat dokumentasi
-								SWAT+.Stasiun dengan data yang hilang tercantum di bawah ini.
+								{{ t.common.wgn_issues_desc.split('{link}')[0] }}
+								<router-link class="text-warning" to="/edit/climate/wgn">{{ t.common.wgn_link }}</router-link>
+								{{ t.common.wgn_issues_desc.split('{link}')[1] }}
 							</p>
 							<ul>
 								<li v-for="station in modelIssues.wgn.data">
-									Station <router-link class="text-warning"
-										:to="`/edit/climate/wgn/edit/${station.id}`">{{ station.name
-										}}</router-link> has <b>{{ station.months }}</b> months of data; 12 are
-									required.
+									{{ t.common.station_data_info.replace('{name}', station.name).replace('{months}', station.months) }}
+                					<router-link class="text-warning" :to="`/edit/climate/wgn/edit/${station.id}`">({{ station.name }})</router-link>
 								</li>
 							</ul>
 						</v-alert>
 					</div>
 
-					<h1 class="text-h5 mb-4">Run SWAT+</h1>
+					<h1 class="text-h5 mb-4">{{ t.common.run_swat_title }}</h1>
 
 					<p>
-						Sebelum menjalankan model, kita harus menulis file input yang digunakan oleh model.
-						Jika Anda telah memodifikasi input Anda melalui bagian edit sejak terakhir menjalankan model,
-						pastikan untuk tetap
-						mencentang kotak ini.
-						Centang kotak ketiga untuk membaca file output Anda ke dalam basis data SQLite.
-						Ini akan digunakan oleh alat visualisasi di QSWAT+. Jika Anda tidak bermaksud menggunakan fitur
-						ini,
-						Anda dapat menghapus centang pada kotak ini untuk menghemat waktu.
+						{{ t.common.run_swat_desc }}
 					</p>
 
 					<v-card>
@@ -1332,7 +1196,7 @@ const outputLogFile = computed(() => {
 								<div class="pt-0">
 									<div class="d-flex align-center">
 										<label for="select_model">
-											<b>Run SWAT+</b>
+											<b>{{t.common.run_swat_title}}</b>
 										</label>
 										<v-select v-model="data.selection.exeFile" :items="data.exeOptions"
 											item-title="description" item-value="fileName" class="ml-2"
@@ -1386,10 +1250,7 @@ const outputLogFile = computed(() => {
 										<br>Last analyzed {{ formatters.toDate(data.config.output_last_imported) }}
 									</span>
 									<span class="text-warning" v-if="data.page.forceRerunForOutput">
-										<br>Dalam pembaruan terbaru, kami mengubah cara file output diproses.
-										Jika Anda tetap mencentang kotak ini, pastikan Anda juga mencentang kotak untuk
-										<b>re-run the
-											model</b>.
+										<br>{{ t.common.warn_rerun_part1 }}<b>{{ t.common.warn_rerun_bold }}</b>{{t.common.dot}}
 									</span>
 
 									<div>
@@ -1404,12 +1265,9 @@ const outputLogFile = computed(() => {
 													<b>Optional: only read files required by SWAT+ Check</b>
 												</label>
 												<div class="text-secondary">
-													Memiliki model besar dan mencetak file output harian atau bulanan
-													tetapi tidak berencana
-													menggunakan visualisasi?
-													<br>Centang kotak ini untuk menghemat waktu dan hanya membaca file
-													output yang
-													diperlukan untuk Pemeriksaan SWAT+.
+													{{ t.common.swatcheck_desc_part1 }}
+													<br>
+													{{ t.common.swatcheck_desc_part2 }}
 												</div>
 											</div>
 										</div>
@@ -1421,8 +1279,9 @@ const outputLogFile = computed(() => {
 
 					<v-alert v-if="currentProject.isLte" color="info" icon="$info" variant="tonal" border="start"
 						class="my-4">
-						Looking for <strong>SWAT+ Check</strong>? SWAT+ Check is not available in SWAT+ lte.
-						You must run the full version of SWAT+ to get the checker functionality.
+						{{ t.common.warn_lte_part1 }}
+						<strong>{{ t.common.warn_lte_bold }}</strong>
+						{{ t.common.warn_lte_part2 }}
 					</v-alert>
 
 					<action-bar full-width>
@@ -1438,7 +1297,7 @@ const outputLogFile = computed(() => {
 							<v-list>
 								<v-list-item
 									v-if="!formatters.isNullOrEmpty(data.config.output_last_imported) && !currentProject.isLte"
-									to="/check"><v-list-item-title>Run SWAT+ Check</v-list-item-title></v-list-item>
+									to="/check"><v-list-item-title>{{t.common.run_swat_check}}</v-list-item-title></v-list-item>
 								<swat-plus-toolbox-button
 									v-if="!formatters.isNullOrEmpty(data.config.input_files_last_written) && !currentProject.isLte"
 									:ran-swat="!formatters.isNullOrEmpty(data.config.input_files_last_written)"
@@ -1474,14 +1333,11 @@ const outputLogFile = computed(() => {
 								v-if="!formatters.isNullOrEmpty(task.error) && data.status.model" class="mb-4">
 								{{ task.error }}
 								<span v-if="false && !data.selection.debug">Please run the model in debug mode to get a
-									detailed error
-									report.</span>
+									{{ t.common.err_debug_mode }}</span>
 								<span v-else>
-									Jika Anda tidak dapat menentukan penyebab kesalahan, silakan salin dan tempel log
-									output di bawah
-									ini ke
+									{{ t.common.err_contact_help_part1 }}
 									<open-in-browser url="https://groups.google.com/d/forum/swatplus"
-										text="SWAT+ model user group" />.
+										:text="t.common.err_contact_help_link" />{{t.common.dot}}
 								</span>
 							</v-alert>
 
@@ -1513,7 +1369,7 @@ const outputLogFile = computed(() => {
 								<v-btn
 									v-if="!formatters.isNullOrEmpty(data.config.output_last_imported) && !currentProject.isLte"
 									type="button" variant="flat" color="primary" size="large" rounded="xl" to="/check"
-									block class="my-2">Run SWAT+ Check</v-btn>
+									block class="my-2">{{t.common.run_swat_check}}</v-btn>
 								<swat-plus-toolbox-button
 									v-if="!formatters.isNullOrEmpty(data.config.input_files_last_written) && !currentProject.isLte"
 									:ran-swat="!formatters.isNullOrEmpty(data.config.input_files_last_written)"
@@ -1553,30 +1409,18 @@ const outputLogFile = computed(() => {
 					<v-card title="Advanced: Customize SWAT+ Model Executables">
 						<v-card-item>
 							<p>
-								Secara default, kami biasanya mengirimkan SWAT+ Editor dengan tiga versi model: rilis
-								stabil resmi,
-								versi pengembangan terbaru, dan versi rilis model sebelumnya.
-								Anda dapat memilih salah satu dari ketiga versi ini dari menu tarik-turun.
+								{{ t.common.exe_p1 }}
 							</p>
 							<p>
-								Jika Anda ingin menyediakan versi model SWAT+ Anda sendiri, Anda dapat melakukannya
-								dengan terlebih
-								dahulu membuka
-								<open-file :file-path="constants.globals.swat_path" class="text-primary">this folder
+								{{ t.common.exe_p2_part1 }}
+								<open-file :file-path="constants.globals.swat_path" class="text-primary">{{ t.common.exe_p2_link_text }}
 									<font-awesome-icon :icon="['fas', 'fa-folder-open']"
 										class="ml-2"></font-awesome-icon></open-file>
-								containing the executables.
-								Salin file executable Anda ke folder ini, lalu buka file exe-options.csv dan tambahkan
-								baris baru dengan
-								deskripsi dan nama file executable kustom Anda.
-								Terakhir, segarkan daftar di editor dengan <a href="#"
-									@click.prevent="refreshExeOptions" class="text-primary">clicking here</a>.
+								{{ t.common.exe_p2_part2 }} <a href="#"
+									@click.prevent="refreshExeOptions" class="text-primary">{{ t.common.exe_p2_refresh }}</a>{{t.common.dot}}
 							</p>
 							<p>
-								Perhatian: menyediakan file eksekusi Anda sendiri dapat menyebabkan kesalahan jika tidak
-								kompatibel
-								dengan versi rilis resmi default editor.
-								Perubahan format file input atau output antar versi model dapat menyebabkan kesalahan.
+								{{ t.common.exe_p3 }}
 							</p>
 						</v-card-item>
 						<v-divider></v-divider>
@@ -1596,33 +1440,21 @@ const outputLogFile = computed(() => {
 					<v-card title="Advanced: Skip Output Files in Analysis">
 						<v-card-item>
 							<p>
-								Secara umum, kami menyarankan memilih output yang akan dicetak dalam model itu sendiri
-								dan membiarkan
-								editor membaca semua file output.
-								Namun, jika Anda menjalankan model dengan jumlah file output yang besar atau memiliki
-								ruang disk yang
-								terbatas, Anda dapat memilih untuk melewatkan pembacaan beberapa file output ke database
-								editor.
+								{{ t.common.skip_p1 }}
 							</p>
 							<p>
-								File yang dilewati akan tetap tercetak dalam format .txt/.csv sesuai dengan pengaturan
-								pencetakan model
-								Anda, tetapi editor akan mengabaikannya saat mengimpor output.
-								Masukkan nama file output yang ingin Anda lewati di bawah ini. Pastikan untuk memasukkan
-								nama file yang
-								persis sama seperti yang muncul di direktori output Anda, termasuk ekstensi file.
-								Pisahkan beberapa nama file dengan koma.
+								{{ t.common.skip_p2 }}
 							</p>
 							<div class="form-group">
 								<v-text-field v-model="data.page.outputSkip.files"
-									label="Output files to skip (comma-separated)" type="text"
-									hint="Enter the exact names of output files to skip, separated by commas. Example: output1.csv,output2.csv"
+									:label="t.common.skip_files_label" type="text"
+									:hint="t.common.skip_files_hint"
 									persistent-hint></v-text-field>
 							</div>
 						</v-card-item>
 						<v-divider></v-divider>
 						<v-card-actions>
-							<v-btn @click="data.page.outputSkip.show = false">Close</v-btn>
+							<v-btn @click="data.page.outputSkip.show = false">{{ t.common.btn_close }}</v-btn>
 						</v-card-actions>
 					</v-card>
 				</v-dialog>
@@ -1632,7 +1464,7 @@ const outputLogFile = computed(() => {
 						<v-card-text>
 							<error-alert :text="data.page.saveScenario.error"></error-alert>
 							<stack-trace-error v-if="!formatters.isNullOrEmpty(task.error)"
-								error-title="There was an error saving your scenario"
+								:error-title="t.common.err_title_save_scenario"
 								:stack-trace="task.error ? task.error.toString() : ''"  />
 
 							<div v-if="task.running">
@@ -1644,22 +1476,14 @@ const outputLogFile = computed(() => {
 							</div>
 							<div v-else>
 								<p>
-									Menyimpan skenario akan membuat salinan basis data proyek Anda serta semua file teks
-									input dan
-									output model.
-									Kami menyarankan untuk menjalankan model sebelum menyimpan skenario Anda. Setelah
-									penyimpanan
-									selesai, perubahan
-									tambahan apa pun yang dilakukan pada proyek Anda tidak akan memengaruhi skenario
-									yang tersimpan.
-									Anda dapat memuat kembali skenario yang tersimpan ke editor dari
-									<router-link to="/">project setup screen</router-link>.
+									{{ t.common.save_scenario_desc1 }}
+									<router-link to="/">{{ t.common.save_scenario_link }}</router-link>{{t.common.dot}}
 								</p>
 
 								<div class="form-group">
 									<v-text-field type="text" required v-model="data.page.saveScenario.name"
-										label="Give your scenario a unique name"
-										hint="Will create a new folder with this name under your project's Scenarios directory. Cannot be the same name as an existing scenario."
+										:label="t.common.save_scenario_label"
+										:hint="t.common.save_scenario_hint"
 										persistent-hint></v-text-field>
 								</div>
 							</div>
@@ -1680,20 +1504,16 @@ const outputLogFile = computed(() => {
 					<v-card title="Scenario Saved">
 						<v-card-text>
 							<p>
-								<b>Skenario Anda telah disimpan.</b>
-								Perubahan tambahan apa pun yang dilakukan pada proyek Anda tidak akan memengaruhi
-								skenario yang telah
-								disimpan.
-								Anda dapat memuat kembali skenario yang tersimpan ke editor dari <router-link
-									to="/">project setup
-									screen</router-link>.
+								<b>{{ t.common.saved_scenario_bold }}</b>
+								{{ t.common.saved_scenario_part1 }} <router-link
+									to="/">{{ t.common.saved_scenario_link }}</router-link>{{t.common.dot}}
 							</p>
 						</v-card-text>
 						<v-divider></v-divider>
 						<v-card-actions>
 							<open-file button color="primary" variant="text" :file-path="newScenarioPath">Open Scenario
 								Directory</open-file>
-							<v-btn @click="data.page.savedScenario.show = false">Close</v-btn>
+							<v-btn @click="data.page.savedScenario.show = false">{{ t.common.btn_close }}</v-btn>
 						</v-card-actions>
 					</v-card>
 				</v-dialog>
@@ -1702,17 +1522,7 @@ const outputLogFile = computed(() => {
 					<v-card title="Customize input files to write">
 						<v-card-text>
 							<p>
-								Secara default, editor akan menulis semua file input SWAT+ yang ditentukan oleh
-								pengaturan model Anda.
-								Jika Anda memodifikasi file apa pun di luar editor, Anda dapat memilih untuk melewatkan
-								penulisan file
-								tersebut di bawah ini.
-								Pastikan file tersebut masih ada di direktori file input Anda, jika tidak, model akan
-								mengalami crash.
-								Anda juga dapat memilih untuk mengabaikan file input sepenuhnya dengan memilih untuk
-								tidak menulis ke
-								file.cio.
-								Opsi ini tidak disarankan untuk pengguna pemula dan dapat merusak model Anda.
+								{{ t.common.input_custom_desc }}
 							</p>
 
 							<v-table small density="compact">
@@ -1767,7 +1577,7 @@ const outputLogFile = computed(() => {
 						</v-card-text>
 						<v-divider></v-divider>
 						<v-card-actions>
-							<v-btn @click="data.page.inputs.show = false" color="primary">Save &amp; Close</v-btn>
+							<v-btn @click="data.page.inputs.show = false" color="primary">Save &amp; {{ t.common.btn_close }}</v-btn>
 						</v-card-actions>
 					</v-card>
 				</v-dialog>
