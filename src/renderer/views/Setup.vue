@@ -1,4 +1,9 @@
+
 <script setup lang="ts">
+// NOTE: This file includes localization implementation using a reactive store.
+// Structures may be adjusted to align with upcoming major model updates.
+
+
 	import { reactive, onMounted, onUnmounted, watch, ref, computed } from 'vue';
 	import { useRoute } from 'vue-router';
 	import { useTheme, useDisplay } from 'vuetify';
@@ -17,7 +22,7 @@
 	const theme = useTheme();
 	const { mobile } = useDisplay();
 	const { api, constants, errors, formatters, currentProject, runProcess, utilities, appUpdate } = useHelpers();
-	const headerStore = useHeaderStore();
+	// const headerStore = useHeaderStore();
 	const taskStore = useTaskStore();
 	const { task } = storeToRefs(taskStore);
 
