@@ -6,6 +6,7 @@ class StationLocations(BaseModel):
     lat = FloatField()
     long = FloatField()
     elev = FloatField()
+    
 
 class WeatherDailyData(BaseModel):
     station = ForeignKeyField(StationLocations, backref='daily_data', index=True)
@@ -17,6 +18,8 @@ class WeatherDailyData(BaseModel):
     wnd = FloatField(null=True)
     hmd = FloatField(null=True)
     pet = FloatField(null=True)
+    
+   
 
     class Meta:
         # Menjamin tidak ada duplikat data untuk stasiun dan tanggal yang sama

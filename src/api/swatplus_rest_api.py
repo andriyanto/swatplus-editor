@@ -9,7 +9,8 @@ import traceback
 from werkzeug import exceptions
 
 
-from rest import setup, aquifer, auto_complete, basin, change, channel, climate, decision_table, definitions, gwflow, hru, hru_lte, hru_parm_db, hydrology, init, lum, ops, recall, regions, reservoir, routing_unit, salts, soils, structural, water_rights
+# from rest import setup, aquifer, auto_complete, basin, change, channel, climate, decision_table, definitions, gwflow, hru, hru_lte, hru_parm_db, hydrology, init, lum, ops, recall, regions, reservoir, routing_unit, salts, soils, structural, water_rights
+from rest.index import all_blueprints
 
 
 app = Flask(__name__)
@@ -19,31 +20,8 @@ app.debug = False
 app.json.sort_keys = False #type: ignore
 exiting = False
 
-app.register_blueprint(setup.bp)
-app.register_blueprint(aquifer.bp)
-app.register_blueprint(auto_complete.bp)
-app.register_blueprint(basin.bp)
-app.register_blueprint(change.bp)
-app.register_blueprint(channel.bp)
-app.register_blueprint(climate.bp)
-app.register_blueprint(decision_table.bp)
-app.register_blueprint(definitions.bp)
-app.register_blueprint(gwflow.bp)
-app.register_blueprint(hru.bp)
-app.register_blueprint(hru_lte.bp)
-app.register_blueprint(hru_parm_db.bp)
-app.register_blueprint(hydrology.bp)
-app.register_blueprint(init.bp)
-app.register_blueprint(lum.bp)
-app.register_blueprint(ops.bp)
-app.register_blueprint(recall.bp)
-app.register_blueprint(regions.bp)
-app.register_blueprint(reservoir.bp)
-app.register_blueprint(routing_unit.bp)
-app.register_blueprint(salts.bp)
-app.register_blueprint(soils.bp)
-app.register_blueprint(structural.bp)
-app.register_blueprint(water_rights.bp)
+for bp in all_blueprints:
+    app.register_blueprint(bp)
 
 @app.route('/', methods=['GET'])
 def default():

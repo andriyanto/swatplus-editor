@@ -24,7 +24,14 @@ import soils from './soils';
 import structural from './structural';
 import water_rights from './water_rights';
 
-const editRoutes = connect.concat(basin, change, climate, constituents, decision_table, db, hydrology, lum, regions, soils, structural, water_rights);
+import { RouteRecordRaw } from 'vue-router'; // Import RouteRecordRaw for definition data type (TypeScript)
+
+import VizdataRoute from './VizdataRoute'; //Add new route for Visualization Data
+
+//new route group for edit include visualization
+const editRoutes: RouteRecordRaw[] = (connect as RouteRecordRaw[]).concat(basin, change, climate, VizdataRoute, constituents, decision_table, db, hydrology, lum, regions, soils, structural, water_rights);
+
+
 
 export default createRouter({
 	history: createWebHashHistory(),

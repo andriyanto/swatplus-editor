@@ -1,5 +1,5 @@
 <script setup lang="ts">
-	import { reactive, onMounted, onUnmounted, computed, watch } from 'vue';
+	import { reactive, onMounted, onUnmounted, computed, watch, nextTick, ref } from 'vue';
 	import { useRoute } from 'vue-router';
 	import { useDisplay } from 'vuetify';
 	import { storeToRefs } from 'pinia';
@@ -10,6 +10,9 @@
 	import { GridViewHeader } from '@/typings';
 	import GrafikIklim from './GrafikIklim.vue';
 
+	import { useLangStore } from '@/store/lang';
+
+
 
 	const route = useRoute();
 	const { height } = useDisplay();
@@ -17,14 +20,18 @@
 	const taskStore = useTaskStore();
 	const { task } = storeToRefs(taskStore);
 
+	const langStore = useLangStore();
+	const { t } = storeToRefs(langStore);
+
 	const tableHeight = computed(() => {
+		if (props.customHeight) return props.customHeight;
 		if (height.value < 730) return '60vh';
 		if (height.value < 900) return '70vh';
 		if (height.value < 1050) return '75vh';
 		return '78vh';
 	})
 
-	const emit = defineEmits(['change'])
+	const emit = defineEmits(['change', 'update:selected', 'row-clicked'])
 
 	const chart = reactive({ show: false, filePath: '', fileName: '', fileType: '' });
 
@@ -43,7 +50,7 @@
 		hideEdit?: boolean,
 		hideDelete?: boolean,
 		itemsPerPage?: number,
-		defaultSort?: [string,string], 
+		defaultSort?: [string | null,string], 
 		hideFields?: string[],
 		showImportExport?: boolean,
 		defaultCsvFile?: string,
@@ -56,7 +63,10 @@
 		autoHeight?: boolean,
 		editPathPrefix?: string,
 		hideBackButton?: boolean,
-		showDeleteAll?: boolean
+		showDeleteAll?: boolean,
+
+		customHeight?: string,
+		selectable? : boolean
 	}
 
 	const props = withDefaults(defineProps<Props>(), {
@@ -73,7 +83,7 @@
 		hideEdit: false,
 		hideDelete: false,
 		itemsPerPage: 50,
-		defaultSort: () => ['name', 'asc'],
+		defaultSort: () => [null, 'asc'],
 		hideFields: () => ['id'],
 		showImportExport: false,
 		defaultCsvFile: '',
@@ -86,7 +96,10 @@
 		autoHeight: false,
 		editPathPrefix: '',
 		hideBackButton: false,
-		showDeleteAll: false
+		showDeleteAll: false,
+
+		customHeight: '',
+		selectable : false
 	});
 
 	const loaderArray = computed(() => {
@@ -148,13 +161,18 @@
 			show: false
 		}
 	});
-
+	const initialSort = computed(() => {
+		if (props.defaultSort[0] === null && props.headers.length > 0) {
+			return [props.headers[0].key, props.defaultSort[1]];
+		}
+		return props.defaultSort;
+	});
 	let table:any = reactive({
 		loading: false,
 		error: null,
 		itemsPerPage: props.itemsPerPage,
 		page: 1,
-		sortBy: props.defaultSort,
+		sortBy: initialSort,
 		headers: props.headers,
 		filter: null
 	});
@@ -164,6 +182,13 @@
 		matches: 0,
 		items: []
 	});
+const activeRowId = ref<any>(null);
+
+function onRowClick(item: any) {
+    activeRowId.value = item[itemPk.value]; // Memperbarui ID agar :class bekerja
+    emit('row-clicked', item); 
+}
+
 
 async function get(init = false) {
 	table.loading = true;
@@ -175,10 +200,13 @@ async function get(init = false) {
 		let qRev = 'n';
 		let qPerPage = table.itemsPerPage;
 
-		if (table.sortBy.length) {
-			qSort = table.sortBy[0];
-			qRev = table.sortBy[1] === 'desc' ? 'y' : 'n';
-		}
+		if (table.sortBy && table.sortBy.length >= 2) {
+            qSort = table.sortBy[0];
+            qRev = table.sortBy[1] === 'desc' ? 'y' : 'n';
+        } else if (props.headers.length > 0) {
+            // Fallback: Jika sortBy kosong, paksa pakai header pertama
+            qSort = props.headers[0].key;
+        }
 
 		let filter = !props.hideFilter && table.filter !== null ? `&filter=${encodeURIComponent(table.filter)}` : '';
 
@@ -189,7 +217,10 @@ async function get(init = false) {
 		data.total = response.data.total;
 		data.matches = response.data.matches;
 		data.items = response.data.items;
-		emit('change', data.total);
+		// emit('change', data.total);
+		emit('change', { total: data.total, items: data.items });
+
+		await nextTick();
 
 		if (init) {
 			getDynamicHeaders();
@@ -197,8 +228,9 @@ async function get(init = false) {
 	} catch (error) {
 		errors.log(error);
 	}
-	
+	setTimeout(() => {
 	table.loading = false;
+	}, 50);
 }
 
 	function getDynamicHeaders() {
@@ -368,6 +400,9 @@ async function get(init = false) {
 	})
 
 	onMounted(async () => {
+		if (table.sortBy[0] === null && props.headers.length > 0) {
+        table.sortBy = [props.headers[0].key, props.defaultSort[1] || 'asc'];
+    }
 		page.loading = true;
 		await get(true);
 		page.loading = false;
@@ -376,9 +411,46 @@ async function get(init = false) {
 
 	watch(() => route.path, async () => await get(true))
 
+	watch(() => props.itemsPerPage, (newVal) => {
+		table.itemsPerPage = newVal;
+		table.page = 1; // Reset ke halaman 1 saat jumlah per halaman berubah
+		get(false); // Refresh data
+	});
+	const selectedItems = ref<any[]>([]);
+
+watch(selectedItems, (newVal: any[]) => {
+    console.log("DEBUG: Checkbox ditekan, selectedItems sekarang berisi:", newVal);
+    emit('change', {
+        selected: newVal, 
+    });
+});
+
 	defineExpose({
-		get
+		get,
+		items: computed(() => data.items)
 	})
+const allSelected = computed({
+    get: () => data.items.length > 0 && selectedItems.value.length === data.items.length,
+    set: (val) => {
+        selectedItems.value = val ? [...data.items] : [];
+    }
+});
+
+// Tambahkan fungsi untuk toggle satu baris
+function toggleItem(item: any) {
+    const index = selectedItems.value.indexOf(item);
+    if (index > -1) {
+        selectedItems.value.splice(index, 1);
+    } else {
+        selectedItems.value.push(item);
+    }
+}
+
+function toggleAll() {
+    // Logika sudah tertangani oleh computed 'allSelected'
+}
+
+
 </script>
 
 <template>
@@ -395,93 +467,105 @@ async function get(init = false) {
 			Showing {{showFirst}} - {{showLast}} of {{data.matches}} {{formatters.isNullOrEmpty(table.filter) ? 'rows' : 'matches'}}
 		</div>
 	</div>
-	<v-card>
-		<v-table class="data-table" fixed-header :height="autoHeight ? 'auto' : tableHeight" density="compact">
-			<thead>
-				<tr class="bg-surface">
-					<th v-if="!props.hideEdit" class="bg-secondary-tonal min"></th>
-					<th v-for="header in table.headers" :key="header.key" :class="`${header.class} pointer bg-secondary-tonal`" @click="doSort(header.key)">
-						{{ formatters.isNullOrEmpty(header.label) ? header.key : header.label }}
-						<v-icon v-if="!header.noSort && table.sortBy[0] === header.key && table.sortBy[1] === 'asc'" class="fa-xs ms-2">fas fa-arrow-up</v-icon>
-						<v-icon v-if="!header.noSort && table.sortBy[0] === header.key && table.sortBy[1] === 'desc'" class="fa-xs ms-2">fas fa-arrow-down</v-icon>
-					</th>
-					<th v-if="!props.hideDelete" class="bg-secondary-tonal min"></th>
-				</tr>
-			</thead>
-			<tbody v-if="table.loading">
-				<tr v-for="i in loaderArray" :key="i">
-					<td v-if="!props.hideEdit" class="min"></td>
-					<td v-for="header in table.headers" :key="header.key"><v-skeleton-loader type="text" max-width="150"></v-skeleton-loader></td>
-					<td v-if="!props.hideDelete" class="min"></td>
-				</tr>
-			</tbody>
-			<tbody v-else>
-				<tr v-if="!data.items || data.items.length < 1">
-					<td :colspan="headerCount" class="text-center text-medium-emphasis py-6" >
-						<em>Belum ada data yang tersedia {{ !props.hideCreate && formatters.isNullOrEmpty(table.filter) ? 'Gunakan tombol di bagian bawah halaman ini untuk membuat catatan baru.' : '' }}</em>
-					</td>
-				</tr>
-				<tr v-for="item in data.items">
-					<td v-if="!props.hideEdit" class="min">
-						<router-link :to="getEditRoute(item)" class="text-decoration-none text-primary" 
-							:title="`Edit/View (${getEditRoute(item)})`">
-							<font-awesome-icon :icon="['fas', 'edit']"></font-awesome-icon>
-						</router-link>
-					</td>
-					<td v-for="header in table.headers" :key="header.key" :class="header.class">
-						<div v-if="header.type === 'number'">
-							{{ formatters.toNumberFormat(item[header.key], header.decimals||2, '', '-', ['yr','year'].includes(header.key)) }}
-						</div>
-						<div v-else-if="header.type === 'boolean'">
-							{{ item[header.key] ? 'Y' : 'N' }}
-						</div>
-						<div v-else-if="header.type === 'object'">
-							<span v-if="formatters.isNullOrEmpty(item[header.key])">-</span>
-							<router-link v-else-if="!formatters.isNullOrEmpty(header.objectRoutePath)" class="text-primary text-decoration-none" 
-								:to="`${header.objectRoutePath}${header.ignoreObjectRouteId ? '' : item[header.key][header.objectValueField||'id']}`">
-								{{ item[header.key][header.objectTextField||'name'] }}
+	
+	<!-- REVISION NOTE DOM unmounting -->
+		<v-card class="position-relative">
+			
+			<v-overlay 
+				:model-value="table.loading" 
+				contained 
+				class="align-center justify-center"
+				persistent
+			>
+				<v-progress-circular indeterminate color="primary"></v-progress-circular>
+			</v-overlay>
+
+			<v-table class="data-table" fixed-header :height="autoHeight ? 'auto' : tableHeight" density="compact">
+				<thead>
+					<tr class="bg-surface">
+						<th v-if="!props.hideEdit" class="bg-secondary-tonal min"></th>
+						<th v-for="header in table.headers" :key="header.key" :class="`${header.class} pointer bg-secondary-tonal`" @click="doSort(header.key)">
+							{{ formatters.isNullOrEmpty(header.label) ? header.key : header.label }}
+							<v-icon v-if="!header.noSort && table.sortBy[0] === header.key && table.sortBy[1] === 'asc'" class="fa-xs ms-2">fas fa-arrow-up</v-icon>
+							<v-icon v-if="!header.noSort && table.sortBy[0] === header.key && table.sortBy[1] === 'desc'" class="fa-xs ms-2">fas fa-arrow-down</v-icon>
+						</th>
+						<th v-if="!props.hideDelete" class="bg-secondary-tonal min"></th>
+					</tr>
+				</thead>
+				
+				<tbody>
+					<tr v-if="!table.loading && (!data.items || data.items.length < 1)">
+						<td :colspan="headerCount" class="text-center text-medium-emphasis py-6" >
+							<em>Belum ada data yang tersedia {{ !props.hideCreate && formatters.isNullOrEmpty(table.filter) ? 'Gunakan tombol di bagian bawah halaman ini untuk membuat catatan baru.' : '' }}</em>
+						</td>
+					</tr>
+					
+					<tr v-for="item in data.items" :key="item[itemPk]" 
+    @click="props.selectable ? onRowClick(item) : null" 
+    :style="props.selectable ? 'cursor: pointer;' : ''"
+    :class="{ 'row-active': activeRowId === item[itemPk] }">
+						<td v-if="!props.hideEdit" class="min">
+							<router-link :to="getEditRoute(item)" class="text-decoration-none text-primary" 
+								:title="`Edit/View (${getEditRoute(item)})`">
+								<font-awesome-icon :icon="['fas', 'edit']"></font-awesome-icon>
 							</router-link>
-							<span v-else>
-								{{ item[header.key][header.objectTextField||'name'] }}
-							</span>
-						</div>
-						<div v-else-if="header.type === 'file'">
-							<span v-if="formatters.isNullOrEmpty(item[header.key])">{{ header.defaultIfNull }}</span>
-							<span v-else>
-								<v-btn 
-									variant="text" 
-									color="primary" 
-									class="text-decoration-underline"
-									@click="openFile(item, header)"
-									>
+						</td>
+						<td v-for="header in table.headers" :key="header.key" :class="header.class">
+							<div v-if="header.type === 'number'">
+								{{ formatters.toNumberFormat(item[header.key], header.decimals||2, '', '-', ['yr','year'].includes(header.key)) }}
+							</div>
+							<div v-else-if="header.type === 'boolean'">
+								{{ item[header.key] ? 'Y' : 'N' }}
+							</div>
+							<div v-else-if="header.type === 'object'">
+								<span v-if="formatters.isNullOrEmpty(item[header.key])">-</span>
+								<router-link v-else-if="!formatters.isNullOrEmpty(header.objectRoutePath)" class="text-primary text-decoration-none" 
+									:to="`${header.objectRoutePath}${header.ignoreObjectRouteId ? '' : item[header.key][header.objectValueField||'id']}`">
+									{{ item[header.key][header.objectTextField||'name'] }}
+								</router-link>
+								<span v-else>
+									{{ item[header.key][header.objectTextField||'name'] }}
+								</span>
+							</div>
+							<div v-else-if="header.type === 'file'">
+								<span v-if="formatters.isNullOrEmpty(item[header.key])">{{ header.defaultIfNull }}</span>
+								<span v-else>
+									<v-btn 
+										variant="text" 
+										color="primary" 
+										class="text-decoration-underline"
+										@click="openFile(item, header)"
+										>
+										{{ item[header.key] }}
+									</v-btn>
+								</span>
+							</div>
+							<div v-else-if="header.type === 'variable-object'">
+								<span v-if="formatters.isNullOrEmpty(item[header.key])">-</span>
+								<router-link v-else-if="utilities.getObjTypeRoute(item) !== '#'" class="text-primary text-decoration-none" 
+									:to="utilities.getObjTypeRoute(item)">
 									{{ item[header.key] }}
-								</v-btn>
-							</span>
-						</div>
-						<div v-else-if="header.type === 'variable-object'">
-							<span v-if="formatters.isNullOrEmpty(item[header.key])">-</span>
-							<router-link v-else-if="utilities.getObjTypeRoute(item) !== '#'" class="text-primary text-decoration-none" 
-								:to="utilities.getObjTypeRoute(item)">
-								{{ item[header.key] }}
-							</router-link>
-							<span v-else>
-								{{ item[header.key] }}
-							</span>
-						</div>
-						<div v-else-if="header.formatter !== undefined">
-							{{ header.formatter(item[header.key]) }}
-						</div>
-						<div v-else>
-							{{ formatters.isNullOrEmpty(item[header.key]) ? '-' : item[header.key] }}
-						</div>	
-					</td>
-					<td v-if="!props.hideDelete" class="min">
-						<font-awesome-icon :icon="['fas', 'times']" class="text-error pointer" title="Delete" @click="askDelete(item[itemPk], item.name)"></font-awesome-icon>
-					</td>
-				</tr>
-			</tbody>
-		</v-table>
-	</v-card>
+								</router-link>
+								<span v-else>
+									{{ item[header.key] }}
+								</span>
+							</div>
+							<div v-else-if="header.formatter !== undefined">
+								{{ header.formatter(item[header.key]) }}
+							</div>
+							<div v-else>
+								{{ formatters.isNullOrEmpty(item[header.key]) ? '-' : item[header.key] }}
+							</div>	
+						</td>
+						<td v-if="!props.hideDelete" class="min">
+							<font-awesome-icon :icon="['fas', 'times']" class="text-error pointer" title="Delete" @click="askDelete(item[itemPk], item.name)"></font-awesome-icon>
+						</td>
+					</tr>
+				</tbody>
+			</v-table>
+		</v-card>
+
+	
 	<action-bar v-if="!props.noActionBar" :full-width="props.fullWidthActionBar" :fullest-width="props.fullestWidthActionBar">
 		<v-btn v-if="!props.hideCreate" variant="flat" color="primary" class="mr-2" :to="utilities.appendRoute('create')">Create Record</v-btn>
 		<v-btn v-if="props.showImportExport" variant="flat" color="info" class="mr-2" @click="page.import.show = true">Import/Export</v-btn>
@@ -491,13 +575,21 @@ async function get(init = false) {
 		<v-pagination v-model="table.page" @update:modelValue="get(false)" :total-visible="6"
 			:length="getNumPages()" class="ml-auto" size="small"></v-pagination>
 	</action-bar>
-	<div v-else class="d-flex align-center mt-3">
+	<div v-else class="d-flex align-center mt-0">
 		<v-btn v-if="!props.hideCreate" variant="flat" color="primary" class="mr-2" :to="utilities.appendRoute('create')">Create Record</v-btn>
 		<v-btn v-if="props.showImportExport" variant="flat" color="info" class="mr-2" @click="page.import.show = true">Import/Export</v-btn>
 		<v-btn v-if="data.items && data.items.length > 0 && props.showDeleteAll" variant="flat" color="error" class="mr-2" @click="page.deleteAll.show = true">Delete All</v-btn>
 		<slot name="actions"></slot>
-		<v-pagination v-model="table.page" @update:modelValue="get(false)" :total-visible="6"
-			:length="getNumPages()" class="ml-auto" size="small"></v-pagination>
+		<div class="d-flex align-center ml-auto" style="height: 50px;">
+        <span class="text-subtitle-2 font-weight-bold mr-0 d-flex align-center" style="height: 50px;">Page</span>
+        <v-pagination 
+            v-model="table.page" 
+            @update:modelValue="get(false)" 
+            :total-visible="6"
+            :length="getNumPages()" 
+            size="small">
+        </v-pagination>
+    </div>
 	</div>
 
 	<v-dialog v-model="page.delete.show" :max-width="constants.dialogSizes.md">
@@ -506,8 +598,8 @@ async function get(init = false) {
 				<error-alert :text="page.delete.error"></error-alert>
 
 				<p>
-					Apakah Anda yakin ingin menghapus <strong>{{page.delete.name}}</strong>?
-					Tindakan ini bersifat permanen dan tidak dapat dibatalkan. 
+					 <strong>{{page.delete.name}}</strong>?
+					{{ t.common.delete_permanent }}
 				</p>
 			</v-card-text>
 			<v-divider></v-divider>
@@ -524,8 +616,8 @@ async function get(init = false) {
 				<error-alert :text="page.deleteAll.error"></error-alert>
 
 				<p>
-					Apakah Anda yakin ingin menghapus <strong>ALL</strong> records?
-					Tindakan ini bersifat permanen dan tidak dapat dibatalkan. 
+					{{t.common.delete_confirm}} <strong>ALL</strong> records?
+					{{ t.common.delete_permanent }}
 				</p>
 			</v-card-text>
 			<v-divider></v-divider>
@@ -604,3 +696,18 @@ async function get(init = false) {
 	/>
 </project-container>
 </template>
+
+<style scoped>
+/* Pastikan scoped style memiliki selector yang tepat */
+.row-active {
+    background-color: #e3f2fd !important; /* Warna biru muda */
+}
+
+.row-active td {
+    color: #d21919 !important; /* Warna teks biru agar kontras */
+}
+
+.pointer {
+    cursor: pointer;
+}
+</style>

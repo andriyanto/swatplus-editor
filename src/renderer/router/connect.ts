@@ -92,6 +92,9 @@ import RecallCreate from '../views/edit/connect/recall/RecallCreate.vue';
 import RecallDataEdit from '../views/edit/connect/recall/DataEdit.vue';
 import RecallDataCreate from '../views/edit/connect/recall/DataCreate.vue';
 
+
+import ClimatePlaceholder from '../views/edit/visualization_data/ClimatePlaceholder.vue'; 
+
 export default [
 	{ 
 		path: 'cons/channels', name: 'Channels', component: Channels,

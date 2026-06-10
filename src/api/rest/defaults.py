@@ -173,6 +173,7 @@ class DefaultRestMethods:
 			'total': total,
 			'matches': matches
 		}
+  
 	
 	@staticmethod
 	def get_paged_list(table, filter_cols=[], back_refs=False, table_lookups={}, recurse=False) -> Dict[str, Any]:
@@ -522,6 +523,62 @@ class DefaultRestMethods:
 			rh.close()
 			abort(400, 'Unexpected error {ex}'.format(ex=ex))
 		
+	@staticmethod
+	def get_paged_items_rev(table, filter_cols=[], table_lookups={}, default_sort='name') -> Dict[str, Any]:
+		print(f"DEBUG: Input Sort Param: {request.args.get('sort')}")
+		print(f"DEBUG: Default Sort yang diberikan: {default_sort}")
+  
+		project_db = request.headers.get(rh.PROJECT_DB)
+		has_db,error = rh.init(project_db)
+		if not has_db:
+			abort(400, error)
+
+		args = request.args
+		total = table.select().count()
+  
+		sort = RestHelpers.get_arg(args, 'sort', default_sort)
+		print(f"DEBUG: Hasil 'sort' setelah RestHelpers.get_arg: {sort}")
+		print(f"DEBUG: Apakah tabel punya atribut '{sort}'? {hasattr(table, sort)}")
+
+		reverse = RestHelpers.get_arg(args, 'reverse', 'n')
+		page = RestHelpers.get_arg(args, 'page', 1)
+		per_page = RestHelpers.get_arg(args, 'per_page', 50)
+		filter_val = RestHelpers.get_arg(args, 'filter', None)
+  
+		s = table.select()
+
+		if filter_val is not None:
+			w = None
+			for f in filter_cols:
+				lu = table_lookups.get(f, None)
+				condition = (lu.select().where(lu.name.contains(filter_val))) if lu else (f.contains(filter_val))
+				w = (w | condition) if w is not None else condition
+			
+			if w is not None:
+				s = s.where(w)
+
+		matches = s.count()
+
+		# Sorting Dinamis yang lebih rapi
+		if hasattr(table, sort):
+			print(f"DEBUG: Sorting menggunakan atribut objek Peewee: {sort}")
+			sort_field = getattr(table, sort)
+			sort_val = sort_field if reverse != 'y' else sort_field.desc()
+		else:
+			# Fallback ke SQL raw jika kolom tidak ditemukan di model
+			print(f"DEBUG: Sorting menggunakan SQL Raw: [{sort}]")
+			sort_val = SQL('[{}]'.format(sort))
+			if reverse == 'y':
+				sort_val = sort_val.desc()
+
+		m = s.order_by(sort_val).paginate(int(page), int(per_page))
+
+		rh.close()
+		return {
+			'model': m,
+			'total': total,
+			'matches': matches
+		}
 
 class RestHelpers:
 	__invalid_name_msg = 'Invalid name {name}. Please ensure the value exists in your database.'
@@ -529,11 +586,17 @@ class RestHelpers:
 	@staticmethod
 	def has_arg(args, name):
 		missing = name not in args or args[name] is None or args[name] == ''
+		# return not missing
+		if not missing:
+			print(f"DEBUG [RestHelpers]: Argumen '{name}' ditemukan dengan nilai: {args[name]}")
 		return not missing
 
 	@staticmethod
 	def get_arg(args, name, default):
-		return default if not RestHelpers.has_arg(args, name) else args[name]
+		# return default if not RestHelpers.has_arg(args, name) else args[name]
+		result = default if not RestHelpers.has_arg(args, name) else args[name]
+		print(f"DEBUG [RestHelpers]: get_arg('{name}') mengembalikan: {result} (Default-nya: {default})")
+		return result
 	
 	@staticmethod
 	def save_args(table, args, id=0, is_new=False, lookup_fields=[], extra_args=[], remove_spaces=[], primary_key=None):

@@ -50,7 +50,10 @@ const isMapView = computed(() => route.name?.toString().includes('MapView'));
 					<img :src="headerStore.headerImage" class="header-image" />
 				</header> -->
 				<main class="app-content">
-					<div v-if="route.path === '/map'" class="is-map-page">
+					<!-- <div v-if="route.path === '/map'" class="is-map-page">
+                        
+                         -->
+                        <div v-if="route.path.includes('/map') || route.path.includes('/edit/visualization_data')" class="is-map-page">
 						<router-view></router-view>
 					</div>
 					

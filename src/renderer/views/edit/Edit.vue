@@ -6,6 +6,8 @@ import { useHelpers } from '@/helpers';
 import { useLangStore } from '@/store/lang';
 import { storeToRefs } from 'pinia';
 
+import { climateHydrologyNav } from '@/router/nav_vizdata'; //import new route for visualization data
+
 const langStore = useLangStore();
 const { t } = storeToRefs(langStore);
 
@@ -20,7 +22,7 @@ interface Page {
 
 let page: Page = reactive({
 	loading: false,
-	open: route.name === 'Edit' ? ['Climate'] : [],
+	open: route.name === 'Edit' ? ['Climate'] : [], // add route visualization data
 	subOpen: []
 });
 
@@ -52,6 +54,7 @@ let nav: NavGroup[] = reactive([
 			}
 		]
 	},
+	climateHydrologyNav, //new menu visualization data
 	{
 		name: 'Connections', routeName: 'Cons', show: true,
 		items: [
@@ -249,7 +252,10 @@ function shownNavGroups(items: NavGroup[]) {
 	return items.filter((el: any) => { return el.show; })
 }
 
+
+
 function processSubOpenItem(thisRoute: RouteRecordName | null | undefined, name: string) {
+
 	if (thisRoute?.toString().includes(name)) page.subOpen.push(name);
 	else {
 		let idx = page.subOpen.indexOf(name);
@@ -259,20 +265,49 @@ function processSubOpenItem(thisRoute: RouteRecordName | null | undefined, name:
 	}
 }
 
+/**
+ * Updates the drawer state (active groups and sub-menus) based on the current route.
+ * * Design Notes:
+ * 1. Auto-discovery: Dynamically iterates through the 'nav' configuration to find matches, 
+ * removing the need for manual maintenance of a 'subOpenItems' list.
+ * 2. Accordion Behavior: Clears 'page.open' and 'page.subOpen' before processing to 
+ * ensure that only the currently active group remains expanded, providing a 
+ * clean, single-group-at-a-time accordion experience.
+ */
 function processSubOpen(thisRoute: RouteRecordName | null | undefined) {
-	let subOpenItems = [
-		'Channels', 'Aquifers', 'Reservoirs', 'RoutingUnits', 'Gwflow',
-		'Stations', 'Operations', 'LandscapeUnits', 'HardCalibration', 'SoftCalibration', 'Constituents', 'Salts'
-	];
 
-	for (let item of subOpenItems) {
-		processSubOpenItem(thisRoute, item);
-	}
+	console.log("DEBUG: Rute yang diproses:", thisRoute);
+
+	const routeStr = thisRoute?.toString() || "";
+
+	// Reset state to ensure only the currently active route’s group is expanded
+	page.open = []; 
+	page.subOpen = [];
+
+	nav.forEach(group => {
+		group.items.forEach(item => {
+			// Dynamically match the current route against the navigation configuration
+			if (item.routeName && routeStr.includes(item.routeName)) {
+				
+				// Mark the parent group as open
+				if (!page.open.includes(group.routeName)) {
+					page.open.push(group.routeName);
+				}
+
+				// Mark the sub-menu as active if it has children
+				if (item.subItems.length > 0 && !page.subOpen.includes(item.routeName)) {
+					page.subOpen.push(item.routeName);
+				}
+			}
+		});
+	});
+	
 }
 
 watch(() => route.name, (newRoute) => processSubOpen(newRoute))
 
 onMounted(() => processSubOpen(route.name));
+
 </script>
 
 <template>
@@ -288,26 +323,42 @@ onMounted(() => processSubOpen(route.name));
 					<v-list-item v-for="navItem in shownNavItems(navGroup.items)" :key="navItem.name" :to="navItem.path"
 						:title="navItem.name" color="secondary"
 						:class="navItem.subItems.length > 0 && page.subOpen.includes(navItem.routeName) ? 'sub-open' : ''">
-						<v-list v-if="navItem.subItems.length > 0 && page.subOpen.includes(navItem.routeName)"
-							:lines="false" density="compact" nav>
-							<v-list-item v-for="navSubItem in shownNavItems(navItem.subItems)" :key="navSubItem.name"
-								:to="navSubItem.path" :title="navSubItem.name"></v-list-item>
+						<v-list v-if="navItem.subItems.length > 0 && page.subOpen.includes(navItem.routeName)" :lines="false" density="compact" nav>
+							<template v-for="navSubItem in shownNavItems(navItem.subItems)" :key="navSubItem.name">
+								
+								<v-list-group v-if="navSubItem.subItems.length > 0" :value="navSubItem.routeName">
+									<template #activator="{ props }">
+										<v-list-item v-bind="props" :title="navSubItem.name" color="secondary"></v-list-item>
+									</template>
+									<v-list-item 
+										v-for="child in shownNavItems(navSubItem.subItems)" 
+										:key="child.name" 
+										:to="child.path" 
+										:title="child.name"
+									></v-list-item>
+								</v-list-group>
+
+								<v-list-item v-else :to="navSubItem.path" :title="navSubItem.name"></v-list-item>
+								
+							</template>
 						</v-list>
+
 					</v-list-item>
 				</v-list-group>
 			</v-list>
 		</v-navigation-drawer>
+		
 		<v-main class="layout-fix">
-			<div class="py-3 px-6">
+			<div :class="route.path.includes('visualization_data') ? 'map-canvas' : 'default-content'">
 				<div v-if="route.path == '/edit'">
 					<h1 class="text-h5 mb-3 font-weight-bold tracking-tight judul">Edit SWAT+ inputs</h1>
 
-					<p class="isi">
+					<p>
 						{{ t.common.edit_p1 }}
 					</p>
 
 					<h2 class="text-h5 mb-3 mt-4 judul">Help</h2>
-					<p class="isi">
+					<p>
 						{{ t.common.edit_help_p1 }}
 						<font-awesome-icon :icon="['fas', 'book']" /> yang dapat Anda klik
 						{{ t.common.edit_help_p2 }}
@@ -318,7 +369,7 @@ onMounted(() => processSubOpen(route.name));
 
 					<v-divider class="my-6"></v-divider>
 
-					<p class="isi">
+					<p>
 						{{ t.common.edit_footer_p1 }} <router-link to="/run"
 							class="text-primary">{{t.common.run_swat_title}}</router-link>.
 						{{ t.common.edit_footer_p2 }}
@@ -331,66 +382,28 @@ onMounted(() => processSubOpen(route.name));
 </template>
 
 <style scoped>
-
-#secondary-nav {
-	width: 250px;
-	/* border-right: 1px solid rgba(250, 171, 0, 0.05); */
-}
-
-.sub-open {
-	background-color: rgba(var(--v-secondary-focus), 0.08);
-}
-
-.judul {
-	animation: slideInFromTop 0.3s ease-out;
-	/* color: rgb(var(--v-theme-on-surface)); */
-}
-
-.isi {
-	animation: slideInFromLeft 0.5s ease-out forwards;
-}
-
-/* .v-list-group {
-	transition: all 0.3s ease;
+/* Konten normal tetap punya padding agar rapi */
+/* .default-content, .map-canvas {
+    box-sizing: border-box; 
+    width: 100%;
 } */
-
-/* .v-list-item--active {
-	background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.1) 0%, transparent 100%) !important;
-	font-weight: bold;
-} */
-
-@keyframes slideInFromTop {
-	from {
-		opacity: 0;
-		transform: translateY(-10px);
-	}
-
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+.default-content {
+    padding: 12px 24px; /* Setara dengan py-3 px-6 */
 }
 
-@keyframes slideInFromLeft {
-	from {
-		opacity: 0;
-		transform: translateX(-20px);
-	}
-
-	to {
-		opacity: 1;
-		transform: translateX(0);
-	}
+/* Kanvas peta: tanpa padding, memenuhi ruang, dan fleksibel */
+.map-canvas {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    /* padding: 12px 24px; */
+    margin: 0;
+	/* box-sizing: border-box; */
 }
 
-@keyframes expand {
-	from {
-		width: 0;
-	}
-
-	to {
-		width: 40px;
-		/* Sesuai lebar akhir yang diinginkan */
-	}
+/* Memastikan v-main tidak membatasi tinggi */
+.layout-fix {
+    height: 100vh;
 }
 </style>
