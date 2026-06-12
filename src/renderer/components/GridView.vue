@@ -11,6 +11,7 @@
 	import GrafikIklim from './GrafikIklim.vue';
 
 	import { useLangStore } from '@/store/lang';
+	// import { useLayoutStore } from '@/store/layout';
 
 
 
@@ -23,11 +24,16 @@
 	const langStore = useLangStore();
 	const { t } = storeToRefs(langStore);
 
+	// const layoutStore = useLayoutStore();
+
+
 	const tableHeight = computed(() => {
 		if (props.customHeight) return props.customHeight;
-		if (height.value < 730) return '60vh';
-		if (height.value < 900) return '70vh';
-		if (height.value < 1050) return '75vh';
+		const h = Math.floor(height.value / 50) * 50;
+
+		if (h < 700) return '60vh';
+		if (h < 850) return '70vh';
+		if (h < 1050) return '75vh';
 		return '78vh';
 	})
 
@@ -42,6 +48,7 @@
 		headers?: GridViewHeader[],
 		useDynamicHeaders?: boolean,
 		noActionBar?: boolean,
+		inCard?: boolean, 
 		fullWidthActionBar?: boolean,
 		fullestWidthActionBar?: boolean,
 		hideSummary?: boolean,
@@ -75,6 +82,7 @@
 		headers: () => <GridViewHeader[]>[],
 		useDynamicHeaders: false,
 		noActionBar: false,
+		inCard: false,
 		fullWidthActionBar: false,
 		fullestWidthActionBar: false,
 		hideSummary: false,
@@ -182,11 +190,12 @@
 		matches: 0,
 		items: []
 	});
+
 const activeRowId = ref<any>(null);
 
 function onRowClick(item: any) {
-    activeRowId.value = item[itemPk.value]; // Memperbarui ID agar :class bekerja
-    emit('row-clicked', item); 
+	activeRowId.value = item[itemPk.value]; // Memperbarui ID agar :class bekerja
+	emit('row-clicked', item); 
 }
 
 
@@ -231,7 +240,20 @@ async function get(init = false) {
 	setTimeout(() => {
 	table.loading = false;
 	}, 50);
+
+	}
+
+
+	function selectRow(id: any) {
+    activeRowId.value = id;
 }
+
+
+	defineExpose({
+		get,
+    selectRow
+	});
+
 
 	function getDynamicHeaders() {
 		if (props.useDynamicHeaders && data.items.length > 0) {
@@ -413,74 +435,51 @@ async function get(init = false) {
 
 	watch(() => props.itemsPerPage, (newVal) => {
 		table.itemsPerPage = newVal;
-		table.page = 1; // Reset ke halaman 1 saat jumlah per halaman berubah
-		get(false); // Refresh data
+		table.page = 1; 
+		get(false); 
 	});
-	const selectedItems = ref<any[]>([]);
 
-watch(selectedItems, (newVal: any[]) => {
-    console.log("DEBUG: Checkbox ditekan, selectedItems sekarang berisi:", newVal);
-    emit('change', {
-        selected: newVal, 
-    });
-});
-
-	defineExpose({
-		get,
-		items: computed(() => data.items)
-	})
-const allSelected = computed({
-    get: () => data.items.length > 0 && selectedItems.value.length === data.items.length,
-    set: (val) => {
-        selectedItems.value = val ? [...data.items] : [];
-    }
-});
-
-// Tambahkan fungsi untuk toggle satu baris
-function toggleItem(item: any) {
-    const index = selectedItems.value.indexOf(item);
-    if (index > -1) {
-        selectedItems.value.splice(index, 1);
-    } else {
-        selectedItems.value.push(item);
-    }
-}
-
-function toggleAll() {
-    // Logika sudah tertangani oleh computed 'allSelected'
-}
 
 
 </script>
 
 <template>
 <project-container :loading="page.loading">
-	<div class="d-flex align-end mb-4">
-		<div>
-			<v-text-field density="compact" variant="solo" append-inner-icon="fas fa-magnifying-glass" single-line hide-details
-				class="mb-0" style="width:300px"
-				label="Search..." v-model="table.filter" @input="filterChange"></v-text-field>
-			
-		</div>
-		<slot name="header"></slot>
-		<div v-if="!props.hideSummary" class="ml-auto text-right text-body-2">
-			Showing {{showFirst}} - {{showLast}} of {{data.matches}} {{formatters.isNullOrEmpty(table.filter) ? 'rows' : 'matches'}}
-		</div>
-	</div>
 	
-	<!-- REVISION NOTE DOM unmounting -->
-		<v-card class="position-relative">
-			
-			<v-overlay 
-				:model-value="table.loading" 
-				contained 
-				class="align-center justify-center"
-				persistent
-			>
+	<div 
+        :class="props.inCard ? 'd-flex flex-column' : ''" 
+        :style="props.inCard ? 'position: absolute; top: 0; bottom: 0; left: 0; right: 0; padding: 8px;' : ''"
+    >
+		
+		<div class="d-flex align-end mb-4 flex-shrink-0">
+			<div>
+				<v-text-field density="compact" variant="solo" append-inner-icon="fas fa-magnifying-glass" single-line hide-details
+					class="mb-0" style="width:300px"
+					label="Search..." v-model="table.filter" @input="filterChange"></v-text-field>
+			</div>
+			<slot name="header"></slot>
+			<div v-if="!props.hideSummary" class="ml-auto text-right text-body-2">
+				Showing {{showFirst}} - {{showLast}} of {{data.matches}} {{formatters.isNullOrEmpty(table.filter) ? 'rows' : 'matches'}}
+			</div>
+		</div>
+		
+		<v-card 
+			flat
+			class="position-relative" 
+			:class="props.inCard ? 'flex-grow-1 d-flex flex-column' : ''"
+			:style="props.inCard ? 'min-height: 0; border: 1px solid rgba(0,0,0,0.1);' : ''"
+		>
+			<v-overlay :model-value="table.loading" contained class="align-center justify-center" persistent>
 				<v-progress-circular indeterminate color="primary"></v-progress-circular>
 			</v-overlay>
 
-			<v-table class="data-table" fixed-header :height="autoHeight ? 'auto' : tableHeight" density="compact">
+			<v-table 
+				class="data-table" 
+				:class="props.inCard ? 'flex-grow-1 d-flex flex-column table-scroll' : ''" 
+				fixed-header 
+				:height="props.inCard ? undefined : (autoHeight ? 'auto' : tableHeight)" 
+				density="compact"
+			>
 				<thead>
 					<tr class="bg-surface">
 						<th v-if="!props.hideEdit" class="bg-secondary-tonal min"></th>
@@ -501,9 +500,9 @@ function toggleAll() {
 					</tr>
 					
 					<tr v-for="item in data.items" :key="item[itemPk]" 
-    @click="props.selectable ? onRowClick(item) : null" 
-    :style="props.selectable ? 'cursor: pointer;' : ''"
-    :class="{ 'row-active': activeRowId === item[itemPk] }">
+						@click="props.selectable ? onRowClick(item) : null" 
+						:style="props.selectable ? 'cursor: pointer;' : ''"
+						:class="{ 'row-active': activeRowId === item[itemPk] }">
 						<td v-if="!props.hideEdit" class="min">
 							<router-link :to="getEditRoute(item)" class="text-decoration-none text-primary" 
 								:title="`Edit/View (${getEditRoute(item)})`">
@@ -530,12 +529,7 @@ function toggleAll() {
 							<div v-else-if="header.type === 'file'">
 								<span v-if="formatters.isNullOrEmpty(item[header.key])">{{ header.defaultIfNull }}</span>
 								<span v-else>
-									<v-btn 
-										variant="text" 
-										color="primary" 
-										class="text-decoration-underline"
-										@click="openFile(item, header)"
-										>
+									<v-btn variant="text" color="primary" class="text-decoration-underline" @click="openFile(item, header)">
 										{{ item[header.key] }}
 									</v-btn>
 								</span>
@@ -565,42 +559,33 @@ function toggleAll() {
 			</v-table>
 		</v-card>
 
-	
-	<action-bar v-if="!props.noActionBar" :full-width="props.fullWidthActionBar" :fullest-width="props.fullestWidthActionBar">
-		<v-btn v-if="!props.hideCreate" variant="flat" color="primary" class="mr-2" :to="utilities.appendRoute('create')">Create Record</v-btn>
-		<v-btn v-if="props.showImportExport" variant="flat" color="info" class="mr-2" @click="page.import.show = true">Import/Export</v-btn>
-		<v-btn v-if="data.items && data.items.length > 0 && props.showDeleteAll" variant="flat" color="error" class="mr-2" @click="page.deleteAll.show = true">Delete All</v-btn>
-		<slot name="actions"></slot>
-		<back-button v-if="!hideBackButton"></back-button>
-		<v-pagination v-model="table.page" @update:modelValue="get(false)" :total-visible="6"
-			:length="getNumPages()" class="ml-auto" size="small"></v-pagination>
-	</action-bar>
-	<div v-else class="d-flex align-center mt-0">
-		<v-btn v-if="!props.hideCreate" variant="flat" color="primary" class="mr-2" :to="utilities.appendRoute('create')">Create Record</v-btn>
-		<v-btn v-if="props.showImportExport" variant="flat" color="info" class="mr-2" @click="page.import.show = true">Import/Export</v-btn>
-		<v-btn v-if="data.items && data.items.length > 0 && props.showDeleteAll" variant="flat" color="error" class="mr-2" @click="page.deleteAll.show = true">Delete All</v-btn>
-		<slot name="actions"></slot>
-		<div class="d-flex align-center ml-auto" style="height: 50px;">
-        <span class="text-subtitle-2 font-weight-bold mr-0 d-flex align-center" style="height: 50px;">Page</span>
-        <v-pagination 
-            v-model="table.page" 
-            @update:modelValue="get(false)" 
-            :total-visible="6"
-            :length="getNumPages()" 
-            size="small">
-        </v-pagination>
-    </div>
-	</div>
+		<action-bar class="flex-shrink-0 mt-2" v-if="!props.noActionBar" :full-width="props.fullWidthActionBar" :fullest-width="props.fullestWidthActionBar" :in-card="props.inCard">
+			<v-btn v-if="!props.hideCreate" variant="flat" color="primary" class="mr-2" :to="utilities.appendRoute('create')">Create Record</v-btn>
+			<v-btn v-if="props.showImportExport" variant="flat" color="info" class="mr-2" @click="page.import.show = true">Import/Export</v-btn>
+			<v-btn v-if="data.items && data.items.length > 0 && props.showDeleteAll" variant="flat" color="error" class="mr-2" @click="page.deleteAll.show = true">Delete All</v-btn>
+			<slot name="actions"></slot>
+			<back-button v-if="!hideBackButton" class="mr-2"></back-button>
+			<div class="ml-auto d-flex align-center" style="height: 36px;">
+				<v-pagination v-model="table.page" @update:modelValue="get(false)" :total-visible="6" :length="getNumPages()" size="small" density="compact" class="ma-0"></v-pagination>
+			</div>
+		</action-bar>
+		
+		<div v-else class="flex-shrink-0 d-flex align-center mt-2">
+			<v-btn v-if="!props.hideCreate" variant="flat" color="primary" class="mr-2" :to="utilities.appendRoute('create')">Create Record</v-btn>
+			<v-btn v-if="props.showImportExport" variant="flat" color="info" class="mr-2" @click="page.import.show = true">Import/Export</v-btn>
+			<v-btn v-if="data.items && data.items.length > 0 && props.showDeleteAll" variant="flat" color="error" class="mr-2" @click="page.deleteAll.show = true">Delete All</v-btn>
+			<slot name="actions"></slot>
+			<div class="d-flex align-center ml-auto" style="height: 50px;">
+				<span class="text-subtitle-2 font-weight-bold mr-0 d-flex align-center" style="height: 50px;">Page</span>
+				<v-pagination v-model="table.page" @update:modelValue="get(false)" :total-visible="6" :length="getNumPages()" size="small"></v-pagination>
+			</div>
+		</div>
 
-	<v-dialog v-model="page.delete.show" :max-width="constants.dialogSizes.md">
+	</div> <v-dialog v-model="page.delete.show" :max-width="constants.dialogSizes.md">
 		<v-card title="Confirm delete">
 			<v-card-text>
 				<error-alert :text="page.delete.error"></error-alert>
-
-				<p>
-					 <strong>{{page.delete.name}}</strong>?
-					{{ t.common.delete_permanent }}
-				</p>
+				<p><strong>{{page.delete.name}}</strong>? {{ t.common.delete_permanent }}</p>
 			</v-card-text>
 			<v-divider></v-divider>
 			<v-card-actions>
@@ -614,11 +599,7 @@ function toggleAll() {
 		<v-card title="Confirm delete">
 			<v-card-text>
 				<error-alert :text="page.deleteAll.error"></error-alert>
-
-				<p>
-					{{t.common.delete_confirm}} <strong>ALL</strong> records?
-					{{ t.common.delete_permanent }}
-				</p>
+				<p>{{t.common.delete_confirm}} <strong>ALL</strong> records? {{ t.common.delete_permanent }}</p>
 			</v-card-text>
 			<v-divider></v-divider>
 			<v-card-actions>
@@ -633,33 +614,20 @@ function toggleAll() {
 			<v-card-text>
 				<error-alert :text="page.import.error"></error-alert>
 				<stack-trace-error v-if="!formatters.isNullOrEmpty(task.error)" error-title="There was an error importing or exporting your data." :stack-trace="task.error ? task.error.toString() : ''" />
-				
 				<div v-if="task.running">
 					<v-progress-linear :model-value="task.progress.percent" color="primary" height="15" striped indeterminate></v-progress-linear>
-					<p>
-						{{task.progress.message}}
-					</p>
+					<p>{{task.progress.message}}</p>
 				</div>
 				<div v-else-if="formatters.isNullOrEmpty(task.error)">
-					<p>
-						Export your existing data to {{importExportDescription}} or import a {{importExportDescription}} file of new values. 
-						Semua nilai yang sudah ada dalam tabel dengan nama yang sama akan diperbarui agar sesuai dengan nilai Anda. {{importExportDescription}} data.
-						Ekspor data terlebih dahulu untuk mendapatkan templat dengan kolom yang benar.
-					</p>
-
+					<p>Export your existing data to {{importExportDescription}} or import a {{importExportDescription}} file of new values. Semua nilai yang sudah ada dalam tabel dengan nama yang sama akan diperbarui agar sesuai dengan nilai Anda. {{importExportDescription}} data. Ekspor data terlebih dahulu untuk mendapatkan templat dengan kolom yang benar.</p>
 					<v-alert v-if="!formatters.isNullOrEmpty(importExportNotes)" type="info" icon="$info" variant="tonal" border="start" class="mb-4">
 						{{importExportNotes}}
 					</v-alert>
-
 					<v-btn-toggle v-model="page.import.form.type" color="primary" variant="outlined" mandatory class="mb-4">
 						<v-btn value="import_csv">Import</v-btn>
 						<v-btn value="export_csv">Export</v-btn>
 					</v-btn-toggle>
-
-					<select-file-input v-model="page.import.form.fileName" :value="page.import.form.fileName" class="mb-3"
-						:label="page.import.form.type == 'import_csv' ? `Select a ${importExportDescription} file to import` : `Select where to save your ${importExportDescription} file`"
-						:fileType="importExportDescription.toLowerCase()" required :default-file-name="defaultCsvFile" :save-dialog="page.import.form.type == 'export_csv'"
-						invalidFeedback="Please select a file."></select-file-input>
+					<select-file-input v-model="page.import.form.fileName" :value="page.import.form.fileName" class="mb-3" :label="page.import.form.type == 'import_csv' ? `Select a ${importExportDescription} file to import` : `Select where to save your ${importExportDescription} file`" :fileType="importExportDescription.toLowerCase()" required :default-file-name="defaultCsvFile" :save-dialog="page.import.form.type == 'export_csv'" invalidFeedback="Please select a file."></select-file-input>
 				</div>
 			</v-card-text>
 			<v-divider></v-divider>
@@ -675,12 +643,8 @@ function toggleAll() {
 	<v-dialog v-model="page.exported.show" :max-width="constants.dialogSizes.md">
 		<v-card title="Data Exported">
 			<v-card-text>
-				<p>
-					Your data has been exported to a {{importExportDescription}} file. 
-				</p>
-				<p>
-					<open-file :file-path="page.import.form.fileName" text="Open file" button color="primary"></open-file>
-				</p>
+				<p>Your data has been exported to a {{importExportDescription}} file.</p>
+				<p><open-file :file-path="page.import.form.fileName" text="Open file" button color="primary"></open-file></p>
 			</v-card-text>
 			<v-divider></v-divider>
 			<v-card-actions>
@@ -688,26 +652,34 @@ function toggleAll() {
 			</v-card-actions>
 		</v-card>
 	</v-dialog>
-	<GrafikIklim 
-		v-model:show="chart.show" 
-		:file-path="chart.filePath" 
-		:file-name="chart.fileName" 
-		:file-type="chart.fileType" 
-	/>
+	<GrafikIklim v-model:show="chart.show" :file-path="chart.filePath" :file-name="chart.fileName" :file-type="chart.fileType" />
+
 </project-container>
 </template>
 
 <style scoped>
-/* Pastikan scoped style memiliki selector yang tepat */
-.row-active {
-    background-color: #e3f2fd !important; /* Warna biru muda */
-}
+	/* Pastikan scoped style memiliki selector yang tepat */
+	.row-active {
+		background-color: #e3f2fd !important; /* Warna biru muda */
+	}
 
-.row-active td {
-    color: #d21919 !important; /* Warna teks biru agar kontras */
-}
+	.row-active td {
+		color: #d21919 !important; /* Warna teks biru agar kontras */
+	}
 
-.pointer {
-    cursor: pointer;
-}
+	.pointer {
+		cursor: pointer;
+	}
+
+	:deep(.table-scroll.v-table) {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	:deep(.table-scroll .v-table__wrapper) {
+		flex: 1 1 auto;
+		overflow-y: auto;
+	}
+
 </style>

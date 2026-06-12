@@ -83,8 +83,14 @@
 	}));
 	const v$ = useVuelidate(formRules, page.import.form);
 
-	function getTableTotal(total:any) {
-		table.total = total;
+	function getTableTotal(payload:any) {
+		// table.total = total;
+		if (payload && typeof payload === 'object' && 'total' in payload) {
+        table.total = payload.total;
+    } else {
+        // Jika payload adalah angka (seperti versi lama)
+        table.total = payload;
+    }
 	}
 
 	async function get() {
@@ -313,13 +319,17 @@
 								<!-- CSV Format Instructions -->
 								<span v-else-if="page.import.form.format === 'CSV'">
 									{{ t.common.input_csv_iklim }}
-								</span>
-								<span v-else>
 									{{t.common.input_csv_iklim1}}
 									<open-in-browser url="https://power.larc.nasa.gov/data-access-viewer/" text="Download a sample format"></open-in-browser> {{t.common.input_csv_iklim2}}
 								</span>
+								<span v-else>
+									Each measurement provided must have a file named as: <code>pcp.cli</code>, <code>hmd.cli</code>, <code>slr.cli</code>, 
+									<code>tmp.cli</code>, <code>wnd.cli</code>, and <code>pet.cli</code>.
+									<open-in-browser url="https://plus.swat.tamu.edu/downloads/sample_files/weather-stations/swatplus-weather-stations.zip" text="Download a sample format"></open-in-browser>
+									and 
+									<open-in-browser url="https://swatplus.gitbook.io/docs/user/editor/inputs/climate#swat+-format" text="read the instructions"></open-in-browser>.
+								</span>
 
-								Please ensure the files you're importing are saved with UTF-8 encoding. Replace any accent or non-unicode characters in the station names or comment lines of all files.
 							</v-alert>
 							<div class="form-group mb-0">
 								<select-folder-input 

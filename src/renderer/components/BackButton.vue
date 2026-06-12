@@ -8,5 +8,5 @@
 </script>
 
 <template>
-	<v-btn variant="tonal" @click="goBack" class="mr-2">Back</v-btn>
+	<v-btn variant="tonal" @click="goBack" class="mr-1">Back</v-btn>
 </template>

@@ -155,9 +155,31 @@ mark {
 		width: 100%;
 	}
 
+	&.in-card {
+        position: relative !important;
+
+        left: auto !important;
+        width: 100% !important;
+        bottom: auto !important;
+        z-index: 1 !important;
+        border-top: 1px solid $border-color;
+    }
+
+	.v-pagination {
+        display: flex;
+        align-items: center;
+        
+        .v-pagination__list {
+            margin: 0 !important;
+            padding: 0 !important;
+            align-items: center;
+            height: 36px; /* Samakan dengan tinggi v-btn */
+        }
+    }
+
 	button {
-		margin-top: 7px;
-		margin-bottom: 7px;
+		margin-top: 0;
+		margin-bottom: 0;
 	}
 
 	.v-pagination button {

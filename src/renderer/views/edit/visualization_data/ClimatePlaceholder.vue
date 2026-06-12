@@ -15,7 +15,7 @@
 
     <div class="flex-grow-1 px-2 pt-0 pb-0" style="position: relative">     
         <v-card elevation="2" class="h-100 d-flex flex-column">
-            <!-- <v-card-title class="bg-primary text-white">Map View</v-card-title> -->
+            <v-card-title class="bg-primary text-white">Map View</v-card-title>
             
             <v-card-text class="pa-0 flex-grow-1 position-relative">
                 <vizMapOverview />

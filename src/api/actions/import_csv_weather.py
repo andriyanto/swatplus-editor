@@ -282,9 +282,17 @@ class CsvWeatherImport(ExecutableApi):
         df = pd.read_csv(file_path, skiprows=14)
         data_list = []
         for _, row in df.iterrows():
+            try:
+                # Membuat objek datetime dari year dan doy
+                date_obj = pd.to_datetime(f"{int(row['YEAR'])}-01-01") + pd.to_timedelta(int(row['DOY']) - 1, unit='D')
+                formatted_date = date_obj.strftime('%Y-%m-%d')
+            except Exception as e:
+                print(f"DEBUG: Gagal konversi tanggal: {e}")
+                formatted_date = None # atau gunakan fallback
+                
             data_list.append({
                 'station': station,
-                'date': f"{int(row['YEAR'])}-{int(row['DOY'])}",
+                'date': formatted_date,
                 'pcp': row.get('PRECTOTCORR', 0),
                 'tmp_max': row.get('T2M_MAX', 0),
                 'tmp_min': row.get('T2M_MIN', 0),

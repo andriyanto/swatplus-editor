@@ -20,7 +20,7 @@
 		"paths": {
 			"@/*": ["./*"],
 			"typings/*": ["./typings/*"]
-		},
+		}
 	},
 	"include": [
 		"./**/*.ts", 
@@ -29,6 +29,6 @@
 		"./**/*.vue",
 		"./typings/**/*.d.ts",
 		"../vite.config.ts"
-	],
+	]
 }
 
