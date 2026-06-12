@@ -68,7 +68,7 @@
                     enabled: true,
                     type: 'x'
                 },
-                panKey: 'shift',
+                panKey: 'shift'
                 
             },
             title: { 

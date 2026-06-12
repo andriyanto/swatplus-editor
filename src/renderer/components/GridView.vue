@@ -1,445 +1,633 @@
 <script setup lang="ts">
-	import { reactive, onMounted, onUnmounted, computed, watch, nextTick, ref } from 'vue';
-	import { useRoute } from 'vue-router';
-	import { useDisplay } from 'vuetify';
-	import { storeToRefs } from 'pinia';
-	import {useTaskStore} from '@/store/task';
-	// @ts-ignore
-	import _ from 'underscore';
-	import { useHelpers } from '@/helpers';
-	import { GridViewHeader } from '@/typings';
-	import GrafikIklim from './GrafikIklim.vue';
+/* =========================================
+   1. IMPORTS & INTERFACES
+   ========================================= */
+import { reactive, onMounted, computed, watch, nextTick, ref } from 'vue';
+import { useRoute } from 'vue-router';
+import { useDisplay } from 'vuetify';
+import { storeToRefs } from 'pinia';
+import { useTaskStore } from '@/store/task';
+// @ts-ignore
+import _ from 'underscore';
+import { useHelpers } from '@/helpers';
+import { GridViewHeader } from '@/typings';
+import GrafikIklim from './GrafikIklim.vue';
+import { useLangStore } from '@/store/lang';
+// import { useLayoutStore } from '@/store/layout';
 
-	import { useLangStore } from '@/store/lang';
-	// import { useLayoutStore } from '@/store/layout';
-
-
-
-	const route = useRoute();
-	const { height } = useDisplay();
-	const { api, constants, currentProject, errors, formatters, runProcess, utilities } = useHelpers();
-	const taskStore = useTaskStore();
-	const { task } = storeToRefs(taskStore);
-
-	const langStore = useLangStore();
-	const { t } = storeToRefs(langStore);
-
-	// const layoutStore = useLayoutStore();
-
-
-	const tableHeight = computed(() => {
-		if (props.customHeight) return props.customHeight;
-		const h = Math.floor(height.value / 50) * 50;
-
-		if (h < 700) return '60vh';
-		if (h < 850) return '70vh';
-		if (h < 1050) return '75vh';
-		return '78vh';
-	})
-
-	const emit = defineEmits(['change', 'update:selected', 'row-clicked'])
-
-	const chart = reactive({ show: false, filePath: '', fileName: '', fileType: '' });
-
-
-	interface Props {
-		apiUrl: string,
-		deleteApiUrl?: string | null
-		headers?: GridViewHeader[],
-		useDynamicHeaders?: boolean,
-		noActionBar?: boolean,
-		inCard?: boolean, 
-		fullWidthActionBar?: boolean,
-		fullestWidthActionBar?: boolean,
-		hideSummary?: boolean,
-		hideFilter?: boolean,
-		hideCreate?: boolean,
-		hideEdit?: boolean,
-		hideDelete?: boolean,
-		itemsPerPage?: number,
-		defaultSort?: [string | null,string], 
-		hideFields?: string[],
-		showImportExport?: boolean,
-		defaultCsvFile?: string,
-		tableName?: string,
-		importExportRelatedId?: number|null,
-		importExportDescription?: string,
-		importExportNotes?: string,
-		importExportDeleteExisting?: boolean,
-		importPrimaryKey?: string,
-		autoHeight?: boolean,
-		editPathPrefix?: string,
-		hideBackButton?: boolean,
-		showDeleteAll?: boolean,
-
-		customHeight?: string,
-		selectable? : boolean
-	}
-
-	const props = withDefaults(defineProps<Props>(), {
-		apiUrl: '',
-		deleteApiUrl: null,
-		headers: () => <GridViewHeader[]>[],
-		useDynamicHeaders: false,
-		noActionBar: false,
-		inCard: false,
-		fullWidthActionBar: false,
-		fullestWidthActionBar: false,
-		hideSummary: false,
-		hideFilter: false,
-		hideCreate: false,
-		hideEdit: false,
-		hideDelete: false,
-		itemsPerPage: 50,
-		defaultSort: () => [null, 'asc'],
-		hideFields: () => ['id'],
-		showImportExport: false,
-		defaultCsvFile: '',
-		tableName: '',
-		importExportRelatedId: null,
-		importExportDescription: 'CSV',
-		importExportNotes: '',
-		importExportDeleteExisting: false,
-		importPrimaryKey: '',
-		autoHeight: false,
-		editPathPrefix: '',
-		hideBackButton: false,
-		showDeleteAll: false,
-
-		customHeight: '',
-		selectable : false
-	});
-
-	const loaderArray = computed(() => {
-		let arr:number[] = [];
-		for(let i = 0; i < props.itemsPerPage; i++) {
-			arr.push(i);
-		}
-		return arr;
-	});
-
-	const showFirst = computed(() => {
-		if (data.total < 1) return 0;
-		return (table.page-1) * table.itemsPerPage + 1
-	});
-
-	const showLast = computed(() => {
-		var max = (table.page-1) * table.itemsPerPage + table.itemsPerPage
-		return max > data.matches ? data.matches : max;
-	});
-
-	const headerCount = computed(() => {
-		let c = table.headers.length;
-		if (!props.hideEdit) c++;
-		if (!props.hideDelete) c++;
-		return c;
-	})
-
-	let page:any = reactive({
-		loading: false,
-		error: null,
-		delete: {
-			show: false,
-			id: null,
-			name: '',
-			error: null,
-			saving: false
-		},
-		deleteAll: {
-			show: false,
-			error: null,
-			saving: false
-		},
-		import: {
-			form: {
-				fileName: null,
-				type: 'export_csv'
-			},
-			options: {
-				types: [
-					{ text: 'Import', value: 'import_csv' },
-					{ text: 'Export', value: 'export_csv' }
-				]
-			},
-			show: false,
-			saving: false,
-			error: null
-		},
-		exported: {
-			show: false
-		}
-	});
-	const initialSort = computed(() => {
-		if (props.defaultSort[0] === null && props.headers.length > 0) {
-			return [props.headers[0].key, props.defaultSort[1]];
-		}
-		return props.defaultSort;
-	});
-	let table:any = reactive({
-		loading: false,
-		error: null,
-		itemsPerPage: props.itemsPerPage,
-		page: 1,
-		sortBy: initialSort,
-		headers: props.headers,
-		filter: null
-	});
-
-	let data:any = reactive({
-		total: 0,
-		matches: 0,
-		items: []
-	});
-
-const activeRowId = ref<any>(null);
-
-function onRowClick(item: any) {
-	activeRowId.value = item[itemPk.value]; // Memperbarui ID agar :class bekerja
-	emit('row-clicked', item); 
+interface Props {
+    apiUrl: string,
+    deleteApiUrl?: string | null
+    headers?: GridViewHeader[],
+    useDynamicHeaders?: boolean,
+    noActionBar?: boolean,
+    inCard?: boolean, 
+    fullWidthActionBar?: boolean,
+    fullestWidthActionBar?: boolean,
+    hideSummary?: boolean,
+    hideFilter?: boolean,
+    hideCreate?: boolean,
+    hideEdit?: boolean,
+    hideDelete?: boolean,
+    itemsPerPage?: number,
+    defaultSort?: [string | null,string], 
+    hideFields?: string[],
+    showImportExport?: boolean,
+    defaultCsvFile?: string,
+    tableName?: string,
+    importExportRelatedId?: number|null,
+    importExportDescription?: string,
+    importExportNotes?: string,
+    importExportDeleteExisting?: boolean,
+    importPrimaryKey?: string,
+    autoHeight?: boolean,
+    editPathPrefix?: string,
+    hideBackButton?: boolean,
+    showDeleteAll?: boolean,
+    customHeight?: string,
+    selectable? : boolean,
+    inlineEditing?: boolean,
+    enableDateFilter?: boolean
 }
 
+/* =========================================
+   2. PROPS & EMITS (Harus di Atas)
+   ========================================= */
+const props = withDefaults(defineProps<Props>(), {
+    apiUrl: '',
+    deleteApiUrl: null,
+    headers: () => <GridViewHeader[]>[],
+    useDynamicHeaders: false,
+    noActionBar: false,
+    inCard: false,
+    fullWidthActionBar: false,
+    fullestWidthActionBar: false,
+    hideSummary: false,
+    hideFilter: false,
+    hideCreate: false,
+    hideEdit: false,
+    hideDelete: false,
+    itemsPerPage: 50,
+    defaultSort: () => [null, 'asc'],
+    hideFields: () => ['id'],
+    showImportExport: false,
+    defaultCsvFile: '',
+    tableName: '',
+    importExportRelatedId: null,
+    importExportDescription: 'CSV',
+    importExportNotes: '',
+    importExportDeleteExisting: false,
+    importPrimaryKey: '',
+    autoHeight: false,
+    editPathPrefix: '',
+    hideBackButton: false,
+    showDeleteAll: false,
+    customHeight: '',
+    selectable : false,
+    inlineEditing: false,
+    enableDateFilter: false
+});
+
+const emit = defineEmits(['change', 'update:selected', 'row-clicked', 'cell-edited']);
+
+/* =========================================
+   3. COMPOSABLES & STORES
+   ========================================= */
+const route = useRoute();
+const { height } = useDisplay();
+const { api, constants, currentProject, errors, formatters, utilities } = useHelpers(); // Removed runProcess if not used, or keep it
+const taskStore = useTaskStore();
+const { task } = storeToRefs(taskStore);
+const langStore = useLangStore();
+const { t } = storeToRefs(langStore);
+// const layoutStore = useLayoutStore();
+
+/* =========================================
+   4. STATE MANAGEMENT (Ref & Reactive)
+   ========================================= */
+const editingCell = ref<{ rowId: any, colKey: string | null }>({ rowId: null, colKey: null });
+const editValue = ref<any>(null);
+const activeRowId = ref<any>(null);
+
+const chart = reactive({ show: false, filePath: '', fileName: '', fileType: '' });
+
+let page: any = reactive({
+    loading: false,
+    error: null,
+    delete: { show: false, id: null, name: '', error: null, saving: false },
+    deleteAll: { show: false, error: null, saving: false },
+    import: {
+        form: { fileName: null, type: 'export_csv' },
+        options: {
+            types: [
+                { text: 'Import', value: 'import_csv' },
+                { text: 'Export', value: 'export_csv' }
+            ]
+        },
+        show: false,
+        saving: false,
+        error: null
+    },
+    exported: { show: false }
+});
+
+let table: any = reactive({
+    loading: false,
+    error: null,
+    itemsPerPage: Math.floor((window.innerHeight * 0.6) / 35), // Default itemsPerPage calculation
+    page: 1,
+    sortBy: props.defaultSort[0] === null && props.headers.length > 0
+        ? [props.headers[0].key, props.defaultSort[1]]
+        : [...props.defaultSort],
+    headers: props.headers,
+    filter: null
+});
+
+let data: any = reactive({
+    total: 0,
+    matches: 0,
+    items: []
+});
+
+/* =========================================
+   5. COMPUTED PROPERTIES
+   ========================================= */
+
+
+const isProjectReady = computed(() => {
+    // Kita pantau langsung state reaktif 'projectDb' dari currentProject.
+    // Jika projectDb sudah terisi nama database-nya, berarti project sudah SIAP.
+    if (currentProject && currentProject.projectDb) {
+        return true;
+    }
+    return false;
+});
+
+const tableHeight = computed(() => {
+    if (props.customHeight) return props.customHeight;
+    const h = Math.floor(height.value / 50) * 50;
+
+    if (h < 700) return '60vh';
+    if (h < 850) return '70vh';
+    if (h < 1050) return '75vh';
+    return '78vh';
+});
+
+const loaderArray = computed(() => {
+    let arr: number[] = [];
+    for (let i = 0; i < props.itemsPerPage; i++) {
+        arr.push(i);
+    }
+    return arr;
+});
+
+const showFirst = computed(() => {
+    if (data.total < 1) return 0;
+    return (table.page - 1) * table.itemsPerPage + 1;
+});
+
+const showLast = computed(() => {
+    var max = (table.page - 1) * table.itemsPerPage + table.itemsPerPage;
+    return max > data.matches ? data.matches : max;
+});
+
+const headerCount = computed(() => {
+    let c = table.headers.length;
+    if (!props.hideEdit) c++;
+    if (!props.hideDelete) c++;
+    return c;
+});
+
+const itemPk = computed(() => {
+    return formatters.isNullOrEmpty(props.importPrimaryKey) ? 'id' : props.importPrimaryKey;
+});
+
+// const initialSort = computed(() => {
+// 	if (props.defaultSort[0] === null && props.headers.length > 0) {
+// 		return [props.headers[0].key, props.defaultSort[1]];
+// 	}
+// 	return props.defaultSort;
+// });
+
+/* =========================================
+   6. METHODS & FUNCTIONS
+   ========================================= */
+function onRowClick(item: any) {
+    activeRowId.value = item[itemPk.value]; 
+    emit('row-clicked', item); 
+}
+
+const calculateItemsPerPage = () => {
+    if (props.inCard) return; 
+
+    const rowHeight = 45; 
+    const container = document.querySelector('.data-table');
+    
+    if (container) {
+        const availableHeight = container.clientHeight - 50;
+        const calculated = Math.max(5, Math.floor(availableHeight / rowHeight));
+        table.itemsPerPage = calculated;
+    }
+};
+
+// const updatePerPage = () => {
+//     if (props.autoHeight) {
+//         const heightVal = parseInt(tableHeight.value) || 600; // fallback
+//         const calculated = Math.floor(heightVal * 0.012); // estimasi baris per % tinggi layar
+//         table.itemsPerPage = Math.max(10, calculated);
+//     }
+// };
+
+// --- STATE FILTER BERJENJANG ---
+const filterYear = ref<number | null>(null);
+const filterMonth = ref<number | null>(null);
+const filterDay = ref<number | null>(null);
+
+// Menghasilkan daftar tahun (Contoh: dari tahun ini mundur ke 1990)
+const yearOptions = computed(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear; i >= 1990; i--) years.push(i);
+    return years;
+});
+
+const monthOptions = [
+    { title: 'Januari', value: 1 }, { title: 'Februari', value: 2 },
+    { title: 'Maret', value: 3 }, { title: 'April', value: 4 },
+    { title: 'Mei', value: 5 }, { title: 'Juni', value: 6 },
+    { title: 'Juli', value: 7 }, { title: 'Agustus', value: 8 },
+    { title: 'September', value: 9 }, { title: 'Oktober', value: 10 },
+    { title: 'November', value: 11 }, { title: 'Desember', value: 12 }
+];
+
+// Menghitung jumlah hari otomatis (termasuk tahun kabisat)
+const dateOptions = computed(() => {
+    if (!filterYear.value || !filterMonth.value) return [];
+    // Trik JS: hari ke-0 di bulan berikutnya = hari terakhir di bulan ini
+    const daysInMonth = new Date(filterYear.value, filterMonth.value, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
+});
+
+// --- WATCHERS UNTUK EFEK KETERGANTUNGAN ---
+watch(filterYear, (newVal) => {
+    if (!newVal) {
+        filterMonth.value = null; // Reset bulan jika tahun dihapus
+        filterDay.value = null;   // Reset tanggal
+    }
+    applyCascadingFilter();
+});
+
+watch(filterMonth, (newVal) => {
+    if (!newVal) filterDay.value = null; // Reset tanggal jika bulan dihapus
+    
+    // Cegah error tanggal (Misal dari Jan tgl 31 pindah ke Feb, tgl 31 harus di-reset)
+    if (filterDay.value && dateOptions.value.length > 0 && filterDay.value > dateOptions.value.length) {
+        filterDay.value = null;
+    }
+    applyCascadingFilter();
+});
+
+watch(filterDay, () => applyCascadingFilter());
+
+// --- FUNGSI UPDATE FILTER ---
+function applyCascadingFilter() {
+    if (filterYear.value) {
+        let filterStr = `${filterYear.value}`;
+        
+        if (filterMonth.value) {
+            const m = String(filterMonth.value).padStart(2, '0');
+            filterStr += `-${m}`;
+            
+            if (filterDay.value) {
+                const d = String(filterDay.value).padStart(2, '0');
+                filterStr += `-${d}`;
+            }
+        }
+        table.filter = filterStr; // Format akhir: YYYY atau YYYY-MM atau YYYY-MM-DD
+    } else {
+        table.filter = ''; // Reset filter jika tahun kosong
+    }
+    
+    table.page = 1;
+    get(false);
+}
 
 async function get(init = false) {
-	table.loading = true;
-	table.error = null;
 
-	try {
-		let qPage = table.page;
-		let qSort = '';
-		let qRev = 'n';
-		let qPerPage = table.itemsPerPage;
+    const isProjectReady = computed(() => {
+    // Pantau langsung state reaktif 'projectDb' dari currentProject
+    // Jika ada isinya, berarti project sudah SIAP di-load
+if (currentProject && currentProject.projectDb) {
+    return true;
+}
+return false;
+});
 
-		if (table.sortBy && table.sortBy.length >= 2) {
+    table.loading = true;
+    table.error = null;
+
+    try {
+        let qPage = table.page;
+        let qSort = '';
+        let qRev = 'n';
+        let qPerPage = table.itemsPerPage;
+
+        if (table.sortBy && table.sortBy.length >= 2) {
             qSort = table.sortBy[0];
             qRev = table.sortBy[1] === 'desc' ? 'y' : 'n';
         } else if (props.headers.length > 0) {
-            // Fallback: Jika sortBy kosong, paksa pakai header pertama
             qSort = props.headers[0].key;
         }
 
-		let filter = !props.hideFilter && table.filter !== null ? `&filter=${encodeURIComponent(table.filter)}` : '';
+        let filter = !props.hideFilter && table.filter !== null ? `&filter=${encodeURIComponent(table.filter)}` : '';
 
-		let query = `?sort=${qSort}&reverse=${qRev}&page=${qPage}&per_page=${qPerPage}${filter}`;
-		
-		const response = await api.get(`${props.apiUrl}${query}`, currentProject.getApiHeader());
-		errors.log(response.data);
-		data.total = response.data.total;
-		data.matches = response.data.matches;
-		data.items = response.data.items;
-		// emit('change', data.total);
-		emit('change', { total: data.total, items: data.items });
+        let query = `?sort=${qSort}&reverse=${qRev}&page=${qPage}&per_page=${qPerPage}${filter}`;
+        
+        const response = await api.get(`${props.apiUrl}${query}`, currentProject.getApiHeader());
+        errors.log(response.data);
+        data.total = response.data.total;
+        data.matches = response.data.matches;
+        data.items = response.data.items;
+        
+        emit('change', { total: data.total, items: data.items, aggregates: response.data.aggregates || null });
 
-		await nextTick();
+        await nextTick();
 
-		if (init) {
-			getDynamicHeaders();
-		}
-	} catch (error) {
-		errors.log(error);
-	}
-	setTimeout(() => {
-	table.loading = false;
-	}, 50);
+        if (init) {
+            getDynamicHeaders();
+        }
+    } catch (error) {
+        errors.log(error);
+    }
+    
+    setTimeout(() => {
+        table.loading = false;
+    }, 50);
+}
 
-	}
-
-
-	function selectRow(id: any) {
+function selectRow(id: any) {
     activeRowId.value = id;
 }
 
+function getDynamicHeaders() {
+    if (props.useDynamicHeaders && data.items.length > 0) {
+        let item = data.items[0];
+        let keys = Object.keys(item);
 
-	defineExpose({
-		get,
-    selectRow
-	});
+        for (let key of keys) {
+            if (!props.hideFields.includes(key) && !Array.isArray(item[key])) {
+                let header: GridViewHeader = <GridViewHeader>{
+                    key: key,
+                    type: item[key] == null ? 'string' : typeof(item[key]),
+                    decimals: typeof(item[key]) == 'number' ? 2 : 0,
+                    class: typeof(item[key]) == 'number' ? 'text-right' : ''
+                };
+                
+                if (key == 'name') table.headers.unshift(header);
+                else table.headers.push(header);
+            }
+        }
+    }
+}
 
+async function doSort(newSortByKey: string) {
+    let dir = table.sortBy[1] === 'asc' ? 'desc' : 'asc';
+    table.sortBy = [newSortByKey, dir];
+    await get(false);
+}
 
-	function getDynamicHeaders() {
-		if (props.useDynamicHeaders && data.items.length > 0) {
-			let item = data.items[0];
-			let keys = Object.keys(item);
+function openFile(item: any, header: any) {
+    const fileValue = item[header.key];
 
-			for (let key of keys) {
-				if (!props.hideFields.includes(key) && !Array.isArray(item[key])) {
-					let header:GridViewHeader = <GridViewHeader>{
-						key: key,
-						type: item[key] == null ? 'string' : typeof(item[key]),
-						decimals: typeof(item[key]) == 'number' ? 2 : 0,
-						class: typeof(item[key]) == 'number' ? 'text-right' : ''
-					};
-					
-					if (key == 'name') table.headers.unshift(header);
-					else table.headers.push(header);
-				}
-			}
-		}
-	}
+    let fileName = (fileValue && typeof fileValue === 'object' && 'name' in fileValue) 
+        ? fileValue.name 
+        : fileValue;
 
-	async function doSort(newSortByKey:string) {
-		let dir = table.sortBy[1] === 'asc' ? 'desc' : 'asc';
-		table.sortBy = [newSortByKey, dir];
-		await get(false);
-	}
+    if (typeof fileName !== 'string') {
+        console.warn('Data bukan string, tidak bisa dibuka:', fileValue);
+        return;
+    }
 
-	function openFile(item: any, header: any) {
-		const fileValue = item[header.key];
+    const parts = fileName.split('.');
+    const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : 'unknown';
 
+    console.log('File diklik:', fileName, '| Detected Type:', extension);
 
-		let fileName = (fileValue && typeof fileValue === 'object' && 'name' in fileValue) 
-			? fileValue.name 
-			: fileValue;
+    chart.filePath = `${header.filePath}\\${fileName}`;
+    chart.fileName = fileName;
+    chart.fileType = extension || 'unknown'; 
+    chart.show = true;
+}
 
+function getNumPages() {
+    return Math.ceil(data.total / table.itemsPerPage);
+}
 
-		if (typeof fileName !== 'string') {
-			console.warn('Data bukan string, tidak bisa dibuka:', fileValue);
-			return;
-		}
+async function filterChange() {
+    table.page = 1;
+    _.debounce(() => {
+        get(false);
+    }, 500)();
+}
 
+function askDelete(id: any, name: any) {
+    page.delete.id = id;
+    page.delete.name = name;
+    page.delete.show = true;
+}
 
-		const parts = fileName.split('.');
-		const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : 'unknown';
+async function confirmDelete() {
+    page.delete.errors = [];
+    page.delete.saving = true;
 
-		console.log('File diklik:', fileName, '| Detected Type:', extension);
+    try {
+        let url = formatters.isNullOrEmpty(props.deleteApiUrl) ? props.apiUrl : props.deleteApiUrl;
+        const response = await api.delete(`${url}/${page.delete.id}`, currentProject.getApiHeader());
+        errors.log(response);
+        page.delete.show = false;
+        table.currentPage = 1; // Possible typo here in original code: table.currentPage should likely be table.page, leaving intact to avoid breaking unknown logic.
+        await get(false);
+    } catch (error) {
+        page.delete.error = errors.logError(error, 'Unable to delete from database.');
+    }
 
-		chart.filePath = `${header.filePath}\\${fileName}`;
-		chart.fileName = fileName;
-		chart.fileType = extension || 'unknown'; 
-		chart.show = true;
-	}
+    page.delete.saving = false;
+}
 
-	function getNumPages() {
-		return Math.ceil(data.total / table.itemsPerPage);
-	}
+async function confirmDeleteAll() {
+    page.deleteAll.errors = [];
+    page.deleteAll.saving = true;
 
-	async function filterChange() {
-		table.page = 1;
-		_.debounce(await get(false), 500);
-	}
+    try {
+        let url = formatters.isNullOrEmpty(props.deleteApiUrl) ? props.apiUrl : props.deleteApiUrl;
+        const response = await api.delete(`${url}`, currentProject.getApiHeader());
+        errors.log(response);
+        page.deleteAll.show = false;
+        table.currentPage = 1;
+        await get(false);
+    } catch (error) {
+        page.deleteAll.error = errors.logError(error, 'Unable to delete from database.');
+    }
 
-	function askDelete(id:any, name:any) {
-		page.delete.id = id;
-		page.delete.name = name;
-		page.delete.show = true;
-	}
+    page.deleteAll.saving = false;
+}
 
-	async function confirmDelete() {
-		page.delete.errors = [];
-		page.delete.saving = true;
+function importData() {
+    page.import.error = null;
+    page.import.saving = true; 
 
-		try {
-			let url = formatters.isNullOrEmpty(props.deleteApiUrl) ? props.apiUrl : props.deleteApiUrl;
-			const response = await api.delete(`${url}/${page.delete.id}`, currentProject.getApiHeader());
-			errors.log(response);
-			page.delete.show = false;
-			table.currentPage = 1;
-			await get(false);
-		} catch (error) {
-			page.delete.error = errors.logError(error, 'Unable to delete from database.');
-		}
+    if (formatters.isNullOrEmpty(page.import.form.fileName)) {
+        page.import.error = 'Please select a file below.';
+        page.import.saving = false; 
+    } else {
+        let args = [
+            page.import.form.type, 
+            '--db_file=' + currentProject.projectDb,
+            '--file_name=' + page.import.form.fileName,
+            '--table_name=' + props.tableName
+        ];
 
-		page.delete.saving = false;
-	}
+        if (!formatters.isNullOrEmpty(props.importExportRelatedId)) args.push('--related_id=' + props.importExportRelatedId);
+        if (props.importExportDeleteExisting) args.push('--delete_existing=y');
+        if (!formatters.isNullOrEmpty(props.importPrimaryKey)) args.push('--column_name=' + props.importPrimaryKey);
 
-	async function confirmDeleteAll() {
-		page.deleteAll.errors = [];
-		page.deleteAll.saving = true;
+        taskStore.runTask(args, {
+            proc_name: 'gridview',
+            script_name: 'swatplus_api',
+            isGridTask: true,
+            type: null,
+            routePath: route.path
+        }, async () => {
 
-		try {
-			let url = formatters.isNullOrEmpty(props.deleteApiUrl) ? props.apiUrl : props.deleteApiUrl;
-			const response = await api.delete(`${url}`, currentProject.getApiHeader());
-			errors.log(response);
-			page.deleteAll.show = false;
-			table.currentPage = 1;
-			await get(false);
-		} catch (error) {
-			page.deleteAll.error = errors.logError(error, 'Unable to delete from database.');
-		}
+            if (page.import.form.type === 'export_csv') {
+                closeTaskModals();
+                page.exported.show = true;
+            } else {
+                await get(false); 
+                closeTaskModals();
+            }
+            
+            page.import.saving = false;
+        });
+    }
+}
 
-		page.deleteAll.saving = false;
-	}
+function cancelTask() {
+    taskStore.cancelTask();
+    closeTaskModals();
+}
 
-	function importData() {
-		page.import.error = null;
-		page.import.saving = true; 
+function closeTaskModals() {
+    page.import.show = false;
+}
 
-		if (formatters.isNullOrEmpty(page.import.form.fileName)) {
-			page.import.error = 'Please select a file below.';
-			page.import.saving = false; 
-		} else {
-			let args = [
-				page.import.form.type, 
-				'--db_file=' + currentProject.projectDb,
-				'--file_name=' + page.import.form.fileName,
-				'--table_name=' + props.tableName
-			];
+function getEditRoute(item: any) {
+    let pk = item.id;
+    if (!formatters.isNullOrEmpty(props.importPrimaryKey)) pk = item[props.importPrimaryKey];
+    return formatters.isNullOrEmpty(props.editPathPrefix) ? utilities.appendRoute(`edit/${pk}`) : `${props.editPathPrefix}edit/${pk}`;
+}
 
-			if (!formatters.isNullOrEmpty(props.importExportRelatedId)) args.push('--related_id=' + props.importExportRelatedId);
-			if (props.importExportDeleteExisting) args.push('--delete_existing=y');
-			if (!formatters.isNullOrEmpty(props.importPrimaryKey)) args.push('--column_name=' + props.importPrimaryKey);
+function startEdit(item: any, header: any) {
+    editingCell.value = { 
+        rowId: item[itemPk.value], 
+        colKey: header.key 
+    };
+    editValue.value = item[header.key];
+}
 
-	
-			taskStore.runTask(args, {
-				proc_name: 'gridview',
-				script_name: 'swatplus_api',
-				isGridTask: true,
-				type: null,
-				routePath: route.path
-			}, async () => {
+async function saveEdit(item: any, header: any) {
+    const oldVal = item[header.key];
+    const newVal = editValue.value;
 
-				if (page.import.form.type === 'export_csv') {
-					closeTaskModals();
-					page.exported.show = true;
-				} else {
-					await get(false); 
-					closeTaskModals();
-				}
-				
+    if (oldVal !== newVal) {
+        item[header.key] = newVal; 
+        emit('cell-edited', { id: item[itemPk.value], key: header.key, value: newVal, item: item });
+    }
+    
+    editingCell.value = { rowId: null, colKey: null };
+}
 
-				page.import.saving = false;
-			});
-		}
-	}
+function cancelEdit() {
+    editingCell.value = { rowId: null, colKey: null };
+}
 
-		
-	function cancelTask() {
-		taskStore.cancelTask();
-		closeTaskModals();
-	}
+function handleInputKeydown(event: KeyboardEvent, item: any, header: any) {
+    event.stopPropagation();
 
-	function closeTaskModals() {
-		page.import.show = false;
-	}
+    if (event.key === 'Enter') {
+        event.preventDefault(); 
+        saveEdit(item, header);
+    } 
+    else if (event.key === 'Escape') {
+        cancelEdit();
+    }
+}
 
-	function getEditRoute(item:any) {
-		let pk = item.id;
-		if (!formatters.isNullOrEmpty(props.importPrimaryKey)) pk = item[props.importPrimaryKey];
-		return formatters.isNullOrEmpty(props.editPathPrefix) ? utilities.appendRoute(`edit/${pk}`) : `${props.editPathPrefix}edit/${pk}`
-	}
+/* =========================================
+   7. CUSTOM DIRECTIVES
+   ========================================= */
+const vFocus = {
+    mounted: (el: HTMLElement) => {
+        if (el instanceof HTMLInputElement) {
+            setTimeout(() => {
+                el.focus();
+                el.select();
+            }, 50); 
+        } 
+        else {
+            const input = el.querySelector('input');
+            if (input) {
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 50);
+            }
+        }
+    }
+};
 
-	const itemPk = computed(() => {
-		return formatters.isNullOrEmpty(props.importPrimaryKey) ? 'id' : props.importPrimaryKey;
-	})
+/* =========================================
+   8. EXPOSE (Agar bisa diakses komponen parent)
+   ========================================= */
+defineExpose({
+    get,
+    selectRow,
+    table,
+    data
+});
 
-	onMounted(async () => {
-		if (table.sortBy[0] === null && props.headers.length > 0) {
+/* =========================================
+   9. LIFECYCLE & WATCHERS
+   ========================================= */
+onMounted(() => {
+    if (table.sortBy[0] === null && props.headers.length > 0) {
         table.sortBy = [props.headers[0].key, props.defaultSort[1] || 'asc'];
     }
-		page.loading = true;
-		await get(true);
-		page.loading = false;
-	});
-	
+    
+    const observer = new ResizeObserver(() => {
+        calculateItemsPerPage();
+    });
+    
+    const tableEl = document.querySelector('.data-table');
+    if (tableEl) observer.observe(tableEl);
+});
 
-	watch(() => route.path, async () => await get(true))
+// TAMBAHKAN WATCHER INI: Dia akan sabar menunggu sampai isProjectReady = true
+watch(() => isProjectReady.value, async (isReady) => {
+    if (isReady) {
+        page.loading = true;
+        await get(true);
+        page.loading = false;
+    }
+}, { immediate: true });
 
-	watch(() => props.itemsPerPage, (newVal) => {
-		table.itemsPerPage = newVal;
-		table.page = 1; 
-		get(false); 
-	});
+watch(() => route.path, async () => await get(true));
 
-
+watch(() => props.itemsPerPage, (newVal) => {
+    table.itemsPerPage = newVal;
+    table.page = 1; 
+    get(false); 
+});
 
 </script>
 
@@ -451,15 +639,67 @@ async function get(init = false) {
         :style="props.inCard ? 'position: absolute; top: 0; bottom: 0; left: 0; right: 0; padding: 8px;' : ''"
     >
 		
-		<div class="d-flex align-end mb-4 flex-shrink-0">
-			<div>
-				<v-text-field density="compact" variant="solo" append-inner-icon="fas fa-magnifying-glass" single-line hide-details
-					class="mb-0" style="width:300px"
-					label="Search..." v-model="table.filter" @input="filterChange"></v-text-field>
+		<div class="mb-4">
+			<div v-if="!props.hideFilter" class="d-flex align-center">
+
+				<div v-if="props.enableDateFilter" class="d-flex align-center flex-grow-1" style="gap: 12px;">
+					<v-select
+						v-model="filterYear"
+						:items="yearOptions"
+						label="Tahun"
+						density="compact"
+						variant="solo"
+						hide-details
+						clearable
+						class="flex-grow-1"
+					></v-select>
+
+					<v-select
+						v-model="filterMonth"
+						:items="monthOptions"
+						item-title="title"
+						item-value="value"
+						label="Bulan"
+						density="compact"
+						variant="solo"
+						hide-details
+						clearable
+						:disabled="!filterYear"
+						class="flex-grow-1"
+					></v-select>
+
+					<v-select
+						v-model="filterDay"
+						:items="dateOptions"
+						label="Tanggal"
+						density="compact"
+						variant="solo"
+						hide-details
+						clearable
+						:disabled="!filterMonth"
+						class="flex-grow-1"
+					></v-select>
+				</div>
+
+				<v-text-field 
+				v-else
+				density="compact" 
+				variant="solo" 
+				append-inner-icon="fas fa-magnifying-glass" 
+				single-line 
+				hide-details
+				label="Search..." 
+				v-model="table.filter" 
+				class="flex-grow-1"
+				@input="filterChange">
+				</v-text-field>
+
+				<slot name="header"></slot>
 			</div>
-			<slot name="header"></slot>
-			<div v-if="!props.hideSummary" class="ml-auto text-right text-body-2">
-				Showing {{showFirst}} - {{showLast}} of {{data.matches}} {{formatters.isNullOrEmpty(table.filter) ? 'rows' : 'matches'}}
+
+			<div v-if="!props.hideSummary" class="mt-2 text-body-2 text-medium-emphasis">
+				Showing {{showFirst}} - {{showLast}} of {{data.matches}} 
+				{{formatters.isNullOrEmpty(table.filter) ? 'rows' : 'matches'}}
 			</div>
 		</div>
 		
@@ -548,7 +788,31 @@ async function get(init = false) {
 								{{ header.formatter(item[header.key]) }}
 							</div>
 							<div v-else>
-								{{ formatters.isNullOrEmpty(item[header.key]) ? '-' : item[header.key] }}
+								<template v-if="props.inlineEditing && editingCell.rowId === item[itemPk] && editingCell.colKey === header.key">
+     <v-text-field 
+    v-model="editValue" 
+    class="compact-grid-input"
+    density="compact"
+    hide-details
+    variant="solo"
+    v-focus
+    @blur="saveEdit(item, header)"
+    @keydown="handleInputKeydown($event, item, header)" 
+    @click.stop
+    @dblclick.stop
+></v-text-field>
+    </template>
+    
+<template v-else>
+        <div 
+            @dblclick.stop="props.inlineEditing ? startEdit(item, header) : null" 
+            :class="{ 'editable-cell': props.inlineEditing }" 
+            style="min-height: 24px; width: 100%; display: flex; align-items: center;"
+        >
+            {{ formatters.isNullOrEmpty(item[header.key]) ? '-' : item[header.key] }}
+        </div>
+    </template>
+
 							</div>	
 						</td>
 						<td v-if="!props.hideDelete" class="min">
@@ -566,7 +830,7 @@ async function get(init = false) {
 			<slot name="actions"></slot>
 			<back-button v-if="!hideBackButton" class="mr-2"></back-button>
 			<div class="ml-auto d-flex align-center" style="height: 36px;">
-				<v-pagination v-model="table.page" @update:modelValue="get(false)" :total-visible="6" :length="getNumPages()" size="small" density="compact" class="ma-0"></v-pagination>
+				<v-pagination v-model="table.page" @update:modelValue="get(false)" :total-visible="6" :length="getNumPages()" size="medium" density="compact" class="ma-0"></v-pagination>
 			</div>
 		</action-bar>
 		
@@ -658,28 +922,89 @@ async function get(init = false) {
 </template>
 
 <style scoped>
-	/* Pastikan scoped style memiliki selector yang tepat */
-	.row-active {
-		background-color: #e3f2fd !important; /* Warna biru muda */
-	}
+/* =========================================
+   1. HIGHLIGHT & UTILITIES
+   ========================================= */
+.pointer {
+    cursor: pointer;
+}
 
-	.row-active td {
-		color: #d21919 !important; /* Warna teks biru agar kontras */
-	}
+.row-active {
+    background-color: #e3f2fd !important; /* Background biru muda */
+}
 
-	.pointer {
-		cursor: pointer;
-	}
+.row-active td {
+    color: #1976d2 !important; /* Teks biru gelap (Diperbaiki agar sesuai komentar) */
+    font-weight: 500;
+}
 
-	:deep(.table-scroll.v-table) {
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-	}
+/* =========================================
+   2. TABLE SCROLLING (Mode inCard)
+   ========================================= */
+:deep(.table-scroll.v-table) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
 
-	:deep(.table-scroll .v-table__wrapper) {
-		flex: 1 1 auto;
-		overflow-y: auto;
-	}
+:deep(.table-scroll .v-table__wrapper) {
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
 
+/* =========================================
+   3. INLINE EDITING (Sel Tabel yang Bisa Diedit)
+   ========================================= */
+.editable-cell {
+    width: 100%;
+    height: 100%;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    border: 1px solid transparent;
+    transition: border 0.2s ease;
+}
+
+.editable-cell:hover {
+    border: 1px dashed #ccc;
+    cursor: text;
+}
+
+/* Memaksa input text agar muat di dalam sel tabel kecil */
+:deep(.compact-grid-input) {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+:deep(.compact-grid-input .v-input__control),
+:deep(.compact-grid-input .v-field__input) {
+    min-height: 24px !important;
+    height: 28px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: inherit;
+}
+
+/* =========================================
+   4. COMPACT DATE PICKER (Kalender Gaul)
+   ========================================= */
+.compact-date-input {
+    max-width: 250px !important;
+}
+
+/* Kalender yang sangat ringkas */
+:deep(.mini-datepicker) {
+    max-width: 240px !important; /* Jauh lebih kecil dari sebelumnya */
+}
+
+/* Hilangkan padding berlebih di dalam kalender */
+:deep(.v-date-picker-month) {
+    padding: 0 !important;
+}
+
+:deep(.v-date-picker-month__day) {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.75rem !important;
+}
 </style>

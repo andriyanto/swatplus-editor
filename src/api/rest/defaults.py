@@ -522,11 +522,10 @@ class DefaultRestMethods:
 		except Exception as ex:
 			rh.close()
 			abort(400, 'Unexpected error {ex}'.format(ex=ex))
-		
+   
+# awal fungsi dari den	
 	@staticmethod
 	def get_paged_items_rev(table, filter_cols=[], table_lookups={}, default_sort='name') -> Dict[str, Any]:
-		print(f"DEBUG: Input Sort Param: {request.args.get('sort')}")
-		print(f"DEBUG: Default Sort yang diberikan: {default_sort}")
   
 		project_db = request.headers.get(rh.PROJECT_DB)
 		has_db,error = rh.init(project_db)
@@ -537,8 +536,6 @@ class DefaultRestMethods:
 		total = table.select().count()
   
 		sort = RestHelpers.get_arg(args, 'sort', default_sort)
-		print(f"DEBUG: Hasil 'sort' setelah RestHelpers.get_arg: {sort}")
-		print(f"DEBUG: Apakah tabel punya atribut '{sort}'? {hasattr(table, sort)}")
 
 		reverse = RestHelpers.get_arg(args, 'reverse', 'n')
 		page = RestHelpers.get_arg(args, 'page', 1)
@@ -561,12 +558,10 @@ class DefaultRestMethods:
 
 		# Sorting Dinamis yang lebih rapi
 		if hasattr(table, sort):
-			print(f"DEBUG: Sorting menggunakan atribut objek Peewee: {sort}")
 			sort_field = getattr(table, sort)
 			sort_val = sort_field if reverse != 'y' else sort_field.desc()
 		else:
 			# Fallback ke SQL raw jika kolom tidak ditemukan di model
-			print(f"DEBUG: Sorting menggunakan SQL Raw: [{sort}]")
 			sort_val = SQL('[{}]'.format(sort))
 			if reverse == 'y':
 				sort_val = sort_val.desc()
@@ -579,7 +574,80 @@ class DefaultRestMethods:
 			'total': total,
 			'matches': matches
 		}
+  
+	@staticmethod
+	def get_data_list(table, filter_expr=None, search_cols=None, default_sort='id', back_refs=False, max_depth=1):
+		"""
+		Mengambil daftar data dengan dukungan:
+		- Pagination
+		- Sorting dinamis
+		- Filtering opsional (base filter)
+		- Search text (GridView filter)
+		- Data Enrichment (get_obj_name)
+		"""
+		project_db = request.headers.get(rh.PROJECT_DB)
+		has_db, error = rh.init(project_db)
+		if not has_db:
+			abort(400, error)
 
+		try:
+			# 1. Base Query
+			query = table.select()
+
+			# 2. Filter opsional (misal: WeatherDailyData.station == id)
+			if filter_expr is not None:
+				query = query.where(filter_expr)
+
+			# 3. Tangkap Search Text dari GridView
+			filter_val = request.args.get('filter')
+			if filter_val and filter_val != 'None' and search_cols:
+				w = None
+				for col in search_cols:
+					# Gunakan cast('char') agar aman mencari angka sebagai string
+					condition = col.cast('char').contains(filter_val)
+					w = (w | condition) if w is not None else condition
+				
+				if w is not None:
+					# Gabungkan kondisi pencarian dengan query yang sudah di-filter sebelumnya
+					query = query.where(w)
+
+			# 4. Parameter request (Paginasi & Sorting)
+			sort_by = request.args.get('sort', default_sort)
+			reverse = request.args.get('reverse', 'n') == 'y'
+			page = int(request.args.get('page', 1))
+			per_page = int(request.args.get('per_page', 20))
+
+			# 5. Sorting
+			if hasattr(table, sort_by):
+				sort_col = getattr(table, sort_by)
+				query = query.order_by(sort_col.desc() if reverse else sort_col.asc())
+
+			# 6. Metadata
+			total_matches = query.count()
+			query = query.paginate(page, per_page)
+
+			# 7. Serialize
+			items_list = [model_to_dict(m, recurse=back_refs, max_depth=max_depth) for m in query]
+			
+			# 8. Enrichment (Opsional jika back_refs aktif)
+			if back_refs:
+				for item in items_list:
+					RestHelpers.get_obj_name(item)
+
+			rh.close()
+			
+			# Mengembalikan dictionary murni (akan di-jsonify di route)
+			return {
+				'items': items_list,
+				'total': total_matches,
+				'matches': total_matches
+			}
+			
+		except Exception as e:
+			rh.close()
+			abort(500, str(e))
+   
+# akhir fungsi dari den	
 class RestHelpers:
 	__invalid_name_msg = 'Invalid name {name}. Please ensure the value exists in your database.'
 

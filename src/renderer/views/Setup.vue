@@ -839,7 +839,7 @@
 								<v-col :md="info.scenarios.length > 0 ? 6 : 12" cols="12">
 									<v-card>
 										<v-list density="compact">
-											<v-list-subheader class="text-uppercase">{{t.common.project_status_title}}</v-list-subheader>
+											<v-list-subheader class="text-uppercase"><font-awesome-icon :icon="['fas', 'chart-line']" style="font-size:30px;" class="mr-2"  />{{t.common.project_status_title}}</v-list-subheader>
 											<v-list-item to="/edit/climate/stations">
 												<template #prepend>
 													<v-icon
@@ -896,11 +896,11 @@
 										<v-table>
 											<tbody>
 												<tr>
-													<th>{{ t.setup.info_setup5 }}</th>
+													<th><font-awesome-icon :icon="['fas', 'drum-steelpan']" style="font-size:30px;" class="mr-2"  />{{ t.setup.info_setup5 }}</th>
 													<td>{{ formatters.toNumberFormat(info.total_area, 2) }} ha</td>
 												</tr>
 												<tr>
-													<th>{{t.setup.info_setup6}}</th>
+													<th><font-awesome-icon :icon="['fas', 'calendar-check']" style="font-size:30px;" class="mr-2"  />{{t.setup.info_setup6}}</th>
 													<td>
 														{{ info.simulation.yrc_start }}
 														{{ info.simulation.day_start > 0 ? 'day ' + info.simulation.day_start : '' }}
@@ -918,13 +918,13 @@
 										<v-table>
 											<tbody>
 												<tr>
-													<th>{{t.setup.info_setup8}}</th>
+													<th><font-awesome-icon :icon="['fab', 'app-store-ios']" style="font-size:30px;" class="mr-2"  />{{t.setup.info_setup8}}</th>
 													<td>SWAT+ Editor {{ info.editor_version }}<span
 															v-if="info.status.using_gis">,
 															{{ info.gis_version }}</span></td>
 												</tr>
 												<tr>
-													<th>{{t.setup.info_setup9}}</th>
+													<th><font-awesome-icon :icon="['fas', 'file-arrow-up']" style="font-size:30px;" class="mr-2"  />{{t.setup.info_setup9}}</th>
 													<td>{{ formatters.toDate(info.last_modified) }}</td>
 												</tr>
 											</tbody>
